@@ -27,6 +27,21 @@ class WorkflowNode(BaseModel):
     collection: Optional[str] = None
     data: Optional[str] = None
     message: Optional[str] = None
+    # Tool-specific fields
+    toolId: Optional[str] = None
+    params: Optional[Dict[str, Any]] = None
+    # Conditional logic fields
+    condition: Optional[str] = None
+    # Failure handling
+    on_failure: Optional[str] = Field(None, description="Action to take on failure: 'continue', 'stop', 'retry'")
+    continue_on_error: Optional[bool] = Field(False, description="Whether to continue workflow execution if this node fails")
+    max_retries: Optional[int] = Field(3, description="Maximum number of retries for this node")
+    retry_delay: Optional[float] = Field(1.0, description="Delay between retries in seconds")
+    # Timeout settings
+    timeout: Optional[int] = Field(30, description="Timeout for this node in seconds")
+    # Validation and sanitization
+    validate_input: Optional[bool] = Field(True, description="Whether to validate input parameters")
+    sanitize_output: Optional[bool] = Field(True, description="Whether to sanitize output data")
 
 class Workflow(BaseModel):
     workflowId: str
@@ -49,7 +64,7 @@ class UpdateLlmConfig(BaseModel):
     model: Optional[str] = None
 
 class AgentModel(BaseModel):
-    owner: str # Username of the agent's creator
+    owner: Optional[str] = None  # Username of the agent's creator, set automatically by API
     agentId: str
     agentName: str
     version: str

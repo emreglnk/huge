@@ -29,22 +29,22 @@ def get_next_prompt(step: int, agent_data: Dict) -> Optional[str]:
     """
     prompts = [
         # Step 0 - Welcome and ask for name
-        "Welcome! I'm your Master Agent. I'll help you create a new AI agent. Let's start by defining your agent's basic properties. What would you like to name your new agent?",
+        "Merhaba! Ben Master Agent'ım. Yeni bir AI agent oluşturmanıza yardımcı olacağım. Agent'inize ne isim vermek istiyorsunuz?",
         
         # Step 1 - Ask for agent ID
-        lambda data: f"Great! Your agent will be named '{data.get('agentName', 'New Agent')}'. Now, let's give it a unique ID (no spaces, alphanumeric with underscores):",
+        lambda data: f"Harika! Agent'inizin adı '{data.get('agentName', 'Yeni Agent')}' olacak. Şimdi ona benzersiz bir ID verelim (boşluk olmadan, alfanumerik ve alt çizgi kullanabilirsiniz):",
         
         # Step 2 - Ask for system prompt
-        "Now, what system prompt would you like to give this agent? This defines its core behavior and personality.",
+        "Şimdi bu agent'e nasıl bir sistem promptu vermek istiyorsunuz? Bu, agent'in temel davranışını ve kişiliğini tanımlar. Lütfen detaylı bir şekilde açıklayın.",
         
         # Step 3 - Ask for LLM provider
-        "Which LLM provider would you like to use? Options include:\n- openai (for GPT models)\n- deepseek (for DeepSeek's models)\n- gemini (for Google's Gemini)",
+        "Hangi LLM sağlayıcısını kullanmak istiyorsunuz? Seçenekler:\n- openai (GPT modelleri için)\n- deepseek (DeepSeek modelleri için)\n- gemini (Google Gemini için)",
         
         # Step 4 - Ask for specific model
         lambda data: get_model_prompt(data.get('llmProvider', 'openai')),
         
         # Step 5 - Confirmation
-        lambda data: f"Perfect! I'm ready to create your agent with:\n- Name: {data.get('agentName')}\n- ID: {data.get('agentId')}\n- Using {data.get('llmProvider')} ({data.get('llmModel')})\n\nWould you like me to create this agent now? (yes/no)"
+        lambda data: f"Mükemmel! Agent'inizi şu bilgilerle oluşturmaya hazırım:\n- İsim: {data.get('agentName')}\n- ID: {data.get('agentId')}\n- Model: {data.get('llmProvider')} ({data.get('llmModel')})\n\nAgent'i şimdi oluşturmak istiyor musunuz? (evet/hayır)"
     ]
     
     if step >= len(prompts):
@@ -58,16 +58,16 @@ def get_next_prompt(step: int, agent_data: Dict) -> Optional[str]:
 def get_model_prompt(provider: str) -> str:
     """Get provider-specific model options"""
     if provider.lower() == 'openai':
-        return "Which OpenAI model would you like to use? Options include:\n- gpt-3.5-turbo (fast, efficient)\n- gpt-4 (more capable but slower)"
+        return "Hangi OpenAI modelini kullanmak istiyorsunuz? Seçenekler:\n- gpt-3.5-turbo (hızlı, verimli)\n- gpt-4 (daha yetenekli ama yavaş)"
     
     elif provider.lower() == 'deepseek':
-        return "Which DeepSeek model would you like to use? Options include:\n- deepseek-chat (general chat model)\n- deepseek-coder (code-specialized model)"
+        return "Hangi DeepSeek modelini kullanmak istiyorsunuz? Seçenekler:\n- deepseek-chat (genel sohbet modeli)\n- deepseek-coder (kod odaklı model)"
     
     elif provider.lower() == 'gemini':
-        return "Which Google Gemini model would you like to use? Options include:\n- gemini-pro (balanced model)\n- gemini-pro-vision (with image capabilities)"
+        return "Hangi Google Gemini modelini kullanmak istiyorsunuz? Seçenekler:\n- gemini-pro (dengeli model)\n- gemini-pro-vision (görsel yetenekli)"
     
     else:
-        return "Which model would you like to use for this provider?"
+        return "Bu sağlayıcı için hangi modeli kullanmak istiyorsunuz?"
 
 def process_user_input(conversation_id: str, user_message: str) -> MasterAgentState:
     """Process user input and update conversation state"""

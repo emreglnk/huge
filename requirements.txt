@@ -10,3 +10,9 @@ google-generativeai
 passlib[bcrypt]
 python-jose[cryptography]
 python-multipart
+
+# Development and testing dependencies
+pytest
+pytest-asyncio
+pytest-cov
+pytest-mock
