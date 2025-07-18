@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Agent Platform</title>
+    <link rel="icon" href="data:,">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+    <!-- Polyfill for crypto.randomUUID -->
+    <script src="/static/polyfill.js"></script>
+</head>
+<body>
+    <div id="auth-container">
+        <div class="auth-form-container">
+            <form id="login-form" class="auth-form">
+                <h2>Login</h2>
+                <div id="login-error" class="error-message"></div>
+                <div class="form-group">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" name="password" required>
+                </div>
+                <button type="submit" class="btn primary">Login</button>
+                <p>Don't have an account? <a href="#" id="show-register">Register</a></p>
+            </form>
+
+            <form id="register-form" class="auth-form" style="display: none;">
+                <h2>Register</h2>
+                <div id="register-error" class="error-message"></div>
+                <div class="form-group">
+                    <label for="register-username">Username</label>
+                    <input type="text" id="register-username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Password</label>
+                    <input type="password" id="register-password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-email">Email (optional)</label>
+                    <input type="email" id="register-email" name="email">
+                </div>
+                <button type="submit" class="btn primary">Register</button>
+                <p>Already have an account? <a href="#" id="show-login">Login</a></p>
+            </form>
+        </div>
+    </div>
+
+    <div class="app-container" style="display: none;">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1>AI Agent Platform</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <button class="nav-item active" data-section="dashboard">
+                    <span class="material-icons">dashboard</span>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-item" data-section="create-agent">
+                    <span class="material-icons">add_circle</span>
+                    <span>Create Agent</span>
+                </button>
+                <button class="nav-item" data-section="my-agents">
+                    <span class="material-icons">group</span>
+                    <span>My Agents</span>
+                </button>
+                <button class="nav-item" data-section="sessions">
+                    <span class="material-icons">history</span>
+                    <span>Sessions</span>
+                </button>
+                <button class="nav-item" data-section="settings">
+                    <span class="material-icons">settings</span>
+                    <span>Settings</span>
+                </button>
+            </nav>
+            <div class="sidebar-footer">
+                <button id="logout-btn" class="nav-item">
+                    <span class="material-icons">logout</span>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <!-- Dashboard Section -->
+            <section id="dashboard" class="content-section active">
+                <header class="section-header">
+                    <h2>Dashboard</h2>
+                </header>
+                <div class="dashboard-stats">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <span class="material-icons">group</span>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="agent-count">0</h3>
+                            <p>Active Agents</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <span class="material-icons">forum</span>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="session-count">0</h3>
+                            <p>Active Sessions</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <span class="material-icons">chat</span>
+                        </div>
+                        <div class="stat-content">
+                            <h3 id="message-count">0</h3>
+                            <p>Total Messages</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-charts">
+                    <div class="chart-container">
+                        <h3>Agent Usage</h3>
+                        <div id="agent-usage-chart" class="chart">
+                            <p class="empty-state">Loading agent usage data...</p>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Session Activity</h3>
+                        <div id="session-activity-chart" class="chart">
+                            <p class="empty-state">Loading session activity data...</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="recent-activity">
+                    <h3>Recent Activity</h3>
+                    <div id="activity-list" class="activity-list">
+                        <p class="empty-state">No recent activity.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Create Agent Section -->
+            <section id="create-agent" class="content-section">
+                <header class="section-header">
+                    <h2>Create New Agent</h2>
+                </header>
+                <div class="chat-interface">
+                    <div id="chat-messages" class="chat-messages">
+                        <!-- Messages will be added here by JavaScript -->
+                    </div>
+                    <div class="chat-input">
+                        <form id="chat-form">
+                            <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off">
+                            <button type="submit">
+                                <span class="material-icons">send</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- My Agents Section -->
+            <section id="my-agents" class="content-section">
+                <header class="section-header">
+                    <h2>My Agents</h2>
+                </header>
+                <div class="agents-grid" id="agents-grid">
+                    <!-- Agent cards will be added here by JavaScript -->
+                </div>
+                
+                <!-- Agent Edit Modal -->
+                <div id="agent-edit-modal" class="modal">
+                    <div class="modal-content">
+                        <span class="close-modal">&times;</span>
+                        <h3>Edit Agent</h3>
+                        <form id="edit-agent-form">
+                            <input type="hidden" id="edit-agent-id">
+                            <div class="form-group">
+                                <label for="edit-agent-name">Agent Name</label>
+                                <input type="text" id="edit-agent-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-agent-system-prompt">System Prompt</label>
+                                <textarea id="edit-agent-system-prompt" rows="5" required></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>LLM Provider</label>
+                                <select id="edit-agent-llm-provider">
+                                    <option value="openai">OpenAI</option>
+                                    <option value="deepseek">DeepSeek</option>
+                                    <option value="gemini">Gemini</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>LLM Model</label>
+                                <select id="edit-agent-llm-model">
+                                    <option value="gpt-4">GPT-4</option>
+                                    <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                                    <option value="deepseek-chat">DeepSeek Chat</option>
+                                    <option value="gemini-pro">Gemini Pro</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Tools</label>
+                                <div id="edit-agent-tools-list" class="tools-list">
+                                    <!-- Tools will be populated by JavaScript -->
+                                </div>
+                                <button type="button" id="add-tool-btn" class="btn secondary" style="margin-top: 10px;">Add Tool</button>
+                            </div>
+                            <div class="form-group action-buttons">
+                                <button type="submit" class="btn primary">Save Changes</button>
+                                <button type="button" class="btn danger" id="delete-agent-btn">Delete Agent</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Sessions Section -->
+            <section id="sessions" class="content-section">
+                <header class="section-header">
+                    <h2>Session Management</h2>
+                </header>
+                <div class="sessions-filters">
+                    <div class="form-group">
+                        <label for="session-agent-filter">Filter by Agent:</label>
+                        <select id="session-agent-filter">
+                            <option value="">All Agents</option>
+                            <!-- Agent options will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="session-user-filter">Filter by User:</label>
+                        <select id="session-user-filter">
+                            <option value="">All Users</option>
+                            <!-- User options will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <button id="refresh-sessions" class="btn secondary">
+                        <span class="material-icons">refresh</span> Refresh
+                    </button>
+                </div>
+                <div class="sessions-list" id="sessions-list">
+                    <!-- Sessions will be listed here by JavaScript -->
+                    <p class="empty-state">No sessions found.</p>
+                </div>
+                
+                <!-- Session Detail Modal -->
+                <div id="session-detail-modal" class="modal">
+                    <div class="modal-content wide-modal">
+                        <span class="close-modal">&times;</span>
+                        <h3>Session Details</h3>
+                        <div class="session-details">
+                            <div class="session-info">
+                                <div><strong>Session ID:</strong> <span id="detail-session-id"></span></div>
+                                <div><strong>Agent:</strong> <span id="detail-agent-name"></span></div>
+                                <div><strong>User:</strong> <span id="detail-user-id"></span></div>
+                                <div><strong>Created:</strong> <span id="detail-created-at"></span></div>
+                                <div><strong>Last Activity:</strong> <span id="detail-last-activity"></span></div>
+                            </div>
+                            <div class="session-context">
+                                <h4>Session Context</h4>
+                                <pre id="detail-context"></pre>
+                            </div>
+                        </div>
+                        <h4>Conversation History</h4>
+                        <div class="conversation-history" id="detail-conversation-history">
+                            <!-- Conversation history will be displayed here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="settings" class="content-section">
+                <header class="section-header">
+                    <h2>Settings</h2>
+                </header>
+                <div class="settings-form">
+                    <div class="form-group">
+                        <label for="api-key">OpenAI API Key</label>
+                        <input type="password" id="api-key" placeholder="sk-...">
+                    </div>
+                    <div class="form-group">
+                        <label for="deepseek-api-key">DeepSeek API Key</label>
+                        <input type="password" id="deepseek-api-key" placeholder="sk-...">
+                    </div>
+                    <div class="form-group">
+                        <label for="gemini-api-key">Gemini API Key</label>
+                        <input type="password" id="gemini-api-key" placeholder="...">
+                    </div>
+                    <button class="btn primary" id="save-settings">Save Settings</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

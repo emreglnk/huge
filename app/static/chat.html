@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with Agent</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        .chat-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .chat-messages {
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 80%;
+        }
+        .user-message {
+            background-color: #e3f2fd;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .bot-message {
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+        }
+        .chat-input {
+            display: flex;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        .chat-input button {
+            padding: 10px 15px;
+            background-color: #2196f3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .chat-input button:hover {
+            background-color: #0b7dda;
+        }
+        .agent-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .agent-info {
+            display: flex;
+            align-items: center;
+        }
+        .agent-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #2196f3;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-size: 20px;
+        }
+        .back-button {
+            text-decoration: none;
+            color: #333;
+            display: flex;
+            align-items: center;
+        }
+        .back-button span {
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="agent-header">
+            <a href="/" class="back-button">
+                <span class="material-icons">arrow_back</span> Back to Dashboard
+            </a>
+            <div class="agent-info">
+                <div class="agent-avatar" id="agent-avatar"></div>
+                <h1 id="agent-name">Loading Agent...</h1>
+            </div>
+        </div>
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input">
+            <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off">
+            <button id="send-button">
+                <span class="material-icons">send</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Polyfill for crypto.randomUUID for browsers that don't support it
+        if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
+            crypto.randomUUID = function() {
+                // Simple UUID v4 implementation
+                return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+                    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+                );
+            };
+        }
+    
+        document.addEventListener('DOMContentLoaded', function() {
+            const chatMessages = document.getElementById('chat-messages');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-button');
+            const agentName = document.getElementById('agent-name');
+            const agentAvatar = document.getElementById('agent-avatar');
+            
+            // Get agent ID from URL
+            const pathParts = window.location.pathname.split('/');
+            const agentId = pathParts[pathParts.length - 1];
+            
+            // Session management
+            let sessionId = localStorage.getItem(`chat_session_${agentId}`);
+            let userId = localStorage.getItem('user_id');
+            
+            // Generate user ID if not present
+            if (!userId) {
+                userId = crypto.randomUUID();
+                localStorage.setItem('user_id', userId);
+            }
+            
+            async function fetchWithAuth(url, options = {}) {
+                const token = localStorage.getItem('accessToken');
+                if (!token) {
+                    addMessage('bot', 'Error: Not authenticated');
+                    return Promise.reject('Not authenticated');
+                }
+
+                const headers = {
+                    ...options.headers,
+                    'Authorization': `Bearer ${token}`
+                };
+
+                return fetch(url, { ...options, headers });
+            }
+
+            // Initialize agent info and load chat history
+            fetchAgentInfo();
+            fetchChatHistory();
+            
+            // Function to fetch agent information
+            function fetchAgentInfo() {
+                try {
+                    const agentData = localStorage.getItem('currentAgent');
+                    if (agentData) {
+                        const agent = JSON.parse(agentData);
+                        agentName.textContent = agent.agentName || 'AI Agent';
+                        agentAvatar.textContent = agent.agentName ? agent.agentName.charAt(0).toUpperCase() : 'A';
+                        
+                        // Add a welcome message, which will be cleared if history is found
+                        const welcomeMessage = document.createElement('div');
+                        welcomeMessage.classList.add('message', 'bot-message', 'welcome-message');
+                        welcomeMessage.innerHTML = marked.parse(`Hello! I'm ${agent.agentName}. How can I help you today?`);
+                        chatMessages.appendChild(welcomeMessage);
+                    } else {
+                        agentName.textContent = 'Agent Not Found';
+                        addMessage('bot', 'Sorry, agent data could not be loaded. Please go back to the dashboard and try again.');
+                    }
+                } catch (error) {
+                    console.error('Error loading agent info from localStorage:', error);
+                    agentName.textContent = 'Error';
+                    addMessage('bot', 'Sorry, there was an error loading this agent.');
+                }
+            }
+            
+            // Function to fetch chat history
+            async function fetchChatHistory() {
+                try {
+                    // The backend can find the latest session if sessionId is null
+                    const historyUrl = sessionId ? `/chat/history/${agentId}?session_id=${sessionId}` : `/chat/history/${agentId}`;
+                    const response = await fetchWithAuth(historyUrl);
+                    
+                    if (response.ok) {
+                        const history = await response.json();
+                        
+                        if (history && history.length > 0) {
+                             // Clear existing messages before adding history
+                            const welcomeMessage = chatMessages.querySelector('.welcome-message');
+                            if (welcomeMessage) welcomeMessage.remove();
+
+                            history.forEach(entry => {
+                                addMessage('user', entry.user_message);
+                                addMessage('bot', entry.agent_response);
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching chat history:', error);
+                    // Continue without history, the welcome message will remain.
+                }
+            }
+            
+            // Add a message to the chat interface
+            function addMessage(role, content) {
+                const messageElement = document.createElement('div');
+                messageElement.classList.add('message', `${role}-message`);
+
+                if (role === 'bot') {
+                    messageElement.innerHTML = marked.parse(content);
+                } else {
+                    messageElement.textContent = content;
+                }
+
+                chatMessages.appendChild(messageElement);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                return messageElement; // Return the element for manipulation (e.g., removing 'thinking' message)
+            }
+            
+            // Handle send button click
+            sendButton.addEventListener('click', sendMessage);
+            
+            // Handle enter key press
+            messageInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+            
+            // Send message function
+            async function sendMessage() {
+                const userMessage = messageInput.value.trim();
+                if (!userMessage) return;
+                
+                // Display user message
+                addMessage('user', userMessage);
+                
+                // Clear input
+                messageInput.value = '';
+
+                // Show thinking indicator
+                const thinkingMessage = addMessage('bot', 'Düşünüyor...');
+                
+                try {
+                    const response = await fetchWithAuth(`/chat/${agentId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            message: userMessage,
+                            user_id: userId,
+                            session_id: sessionId || undefined
+                        })
+                    });
+
+                    thinkingMessage.remove(); // Remove thinking indicator
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        
+                        // Store session ID if provided
+                        if (data.session_id) {
+                            sessionId = data.session_id;
+                            localStorage.setItem(`chat_session_${agentId}`, sessionId);
+                        }
+                        
+                        // Add bot's response
+                        addMessage('bot', data.response || 'Sorry, I couldn\'t process that.');
+                        
+                        // Handle workflow execution results if present
+                        if (data.status && data.status.includes('Workflow') && data.final_context) {
+                            console.log('Workflow executed:', data.final_context);
+                            // You could display additional UI for workflow results
+                        }
+                    } else {
+                        const errorData = await response.json();
+                        addMessage('bot', `Error: ${errorData.detail || 'Unknown error'}`);
+                    }
+                } catch (error) {
+                    thinkingMessage.remove(); // Remove thinking indicator on error
+                    console.error('Error sending message:', error);
+                    addMessage('bot', 'Sorry, there was an error processing your request. Please try again.');
+                }
+            }
+        });
+    </script>
+</body>
+</html>
