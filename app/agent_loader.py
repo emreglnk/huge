@@ -6,6 +6,7 @@ from pymongo.database import Database
 
 from .db import agent_collection, db
 from .models import AgentModel, Tool, Workflow, DataSchema
+from .file_agent_manager import file_agent_manager
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ class WorkflowValidationError(Exception):
 
 async def load_agent_config(agent_id: str, initialize: bool = False) -> AgentModel:
     """
-    Fetches an agent's configuration from MongoDB and loads it into an AgentModel.
+    Fetches an agent's configuration from file system and loads it into an AgentModel.
 
     Args:
         agent_id: The unique identifier for the agent.
@@ -40,12 +41,10 @@ async def load_agent_config(agent_id: str, initialize: bool = False) -> AgentMod
     Raises:
         AgentNotFoundException: If no agent with the given ID is found.
     """
-    agent_data = await agent_collection.find_one({"agentId": agent_id})
+    agent_config = file_agent_manager.get_agent(agent_id)
     
-    if agent_data is None:
+    if agent_config is None:
         raise AgentNotFoundException(agent_id)
-    
-    agent_config = AgentModel(**agent_data)
     
     if initialize:
         await initialize_agent_components(agent_config)

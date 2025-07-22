@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 
 class ToolAuth(BaseModel):
     type: str
@@ -70,10 +71,11 @@ class AgentModel(BaseModel):
     version: str
     systemPrompt: str
     llmConfig: LlmConfig = Field(default_factory=LlmConfig, description="Configuration for the language model.")
-    dataSchema: DataSchema
-    tools: List[Tool]
-    workflows: List[Workflow]
-    schedules: List[Schedule]
+    dataSchema: Optional[DataSchema] = None
+    tools: List[Tool] = Field(default_factory=list)
+    workflows: List[Workflow] = Field(default_factory=list)
+    schedules: List[Schedule] = Field(default_factory=list)
+    public: Optional[bool] = False  # Whether the agent is publicly shareable
 
     class Config:
         validate_by_name = True
@@ -97,7 +99,7 @@ class AgentModel(BaseModel):
                                 "items": {
                                     "type": "object",
                                     "properties": {
-                                        "date": {"type": "string", "format": "date-time"},
+                                        "date": {"type": "string"},
                                         "weight_kg": {"type": "number"},
                                         "body_fat_percentage": {"type": "number"}
                                     }
@@ -144,3 +146,17 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+class TelegramAuth(BaseModel):
+    """Telegram authentication and chat ID mapping"""
+    user_id: str  # Platform user ID
+    chat_id: str  # Telegram chat ID
+    auth_code: str  # Temporary authentication code
+    is_verified: bool = False
+    created_at: Optional[str] = None
+    verified_at: Optional[str] = None
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }

@@ -1,0 +1,593 @@
+{
+  "owner": "test",
+  "agentId": "diyetisyen_agent_v2",
+  "agentName": "SmartDiet AI Proaktif Diyet Asistanı",
+  "version": "2.0",
+  "systemPrompt": "Sen bir profesyonel ve proaktif AI diyetisyen asistanısın. Kullanıcıların sağlık durumlarına, hedeflerine ve yaşam tarzlarına uygun kişiselleştirilmiş beslenme programları oluşturursun. Her kullanıcı için detaylı bir profil oluşturup, bilimsel verilere dayalı beslenme planları hazırlarsın. Programları düzenli olarak takip eder, kullanıcı geri bildirimlerini ve günlük kayıtlarını değerlendirir ve gerektiğinde planları güncellersin. Tüm verileri organize bir şekilde veritabanına kaydeder ve kullanıcıların ilerlemesini görsel raporlarla sunarsun.\n\n🤖 **TELEGRAM ENTEGRASYONUNDAKİ YETKİLERİN:**\n- Kullanıcıların Telegram hesaplarına otomatik bildirimler gönderebilirsin\n- Günlük beslenme hatırlatmaları, motivasyon mesajları ve raporları Telegram'a iletebilirsin\n- Zamanlanmış mesajlarla kullanıcıları düzenli takip edebilirsin\n- Telegram üzerinden aldığın kullanıcı verilerini işleyebilir ve yanıtlayabilirsin\n- Kullanıcı izni ile Telegram'a kişiselleştirilmiş beslenme planları ve listeler gönderebilirsin\n\n🔧 **TOOL KULLANIM YÖNERGELERİ:**\n- Kullanıcı Telegram mesajı istediğinde **telegram_gonderici** tool'unu kullan\n- Veri kaydetmek/okumak için **veritabani_islemleri** tool'unu kullan\n- Tool çağırma formatı: `[TOOL_CALL: tool_id, {\"param1\": \"value1\", \"param2\": \"value2\"}]`\n- Telegram mesajı örneği: `[TOOL_CALL: telegram_gonderici, {\"message\": \"🍎 Günlük beslenme hatırlatmanız!\"}]`\n\nKullanıcı Telegram entegrasyonunu istediğinde, ona platform üzerinden Telegram hesabını bağlamasını söyle ve ardından **gerçekten** otomatik bildirimler gönder. Daima profesyonel, motive edici ve destekleyici bir dil kullan. Tıbbi teşhis koyma, sadece genel beslenme önerileri sun.\n\nÖNEMLİ FORMAT KURALLARI:\n1. **TABLOLAR KULLAN**: Besin bilgileri, kalori hesaplamaları, program karşılaştırmaları için MUTLAKA tablo formatı kullan.\n2. **VİZUAL DİYAGRAMLAR**: Süreç akışları, beslenme döngüleri için Mermaid diyagramları kullan (mermaid kodlarının doğru olduğundan emin ol).\n3. **MARKDOWN**: Başlıklar için #, listeler için -, tablolar için | kullan.\n4. **TELEGRAM MESAJLARI**: Telegram'a gönderilecek içerikleri kopyalanabilir formatta hazırla ve gerçekten gönder.",
+  "llmConfig": {
+    "provider": "deepseek",
+    "model": "deepseek-chat"
+  },
+  "dataSchema": {
+    "collectionName": "diyetisyen_kullanici_verileri",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "kullanici_id": {
+          "type": "string",
+          "description": "Benzersiz kullanıcı tanımlayıcı (Örn: telegram_user_id)"
+        },
+        "temel_bilgiler": {
+          "type": "object",
+          "properties": {
+            "yas": {
+              "type": "number"
+            },
+            "boy_cm": {
+              "type": "number"
+            },
+            "baslangic_kilo_kg": {
+              "type": "number"
+            },
+            "cinsiyet": {
+              "type": "string",
+              "enum": [
+                "erkek",
+                "kadin",
+                "diger"
+              ]
+            },
+            "aktivite_seviyesi": {
+              "type": "string",
+              "enum": [
+                "sedanter",
+                "hafif",
+                "orta",
+                "aktif",
+                "cok_aktif"
+              ]
+            }
+          },
+          "required": [
+            "yas",
+            "boy_cm",
+            "baslangic_kilo_kg",
+            "cinsiyet",
+            "aktivite_seviyesi"
+          ]
+        },
+        "saglik_bilgileri": {
+          "type": "object",
+          "properties": {
+            "alerjiler": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "kronik_rahatsizliklar": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "kullanilan_ilaclar": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "hedefler": {
+          "type": "object",
+          "properties": {
+            "ana_hedef": {
+              "type": "string",
+              "enum": [
+                "kilo_verme",
+                "kilo_alma",
+                "kas_kazanma",
+                "koruma",
+                "dengeli_beslenme"
+              ]
+            },
+            "hedef_kilo_kg": {
+              "type": "number"
+            },
+            "haftalik_hedef_kg": {
+              "type": "number"
+            },
+            "beslenme_tercihleri": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "ana_hedef"
+          ]
+        },
+        "diyet_planlari": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "plan_id": {
+                "type": "string"
+              },
+              "tarih": {
+                "type": "string",
+                "format": "date"
+              },
+              "hedef_gunluk_kalori": {
+                "type": "number"
+              },
+              "aktif_mi": {
+                "type": "boolean",
+                "default": true
+              },
+              "ogunler": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "ogun_adi": {
+                      "type": "string"
+                    },
+                    "besinler": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "haftalik_takip_verileri": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tarih": {
+                "type": "string",
+                "format": "date"
+              },
+              "kilo_kg": {
+                "type": "number"
+              },
+              "vucut_olcumleri_cm": {
+                "type": "object",
+                "properties": {
+                  "bel": {
+                    "type": "number"
+                  },
+                  "kalca": {
+                    "type": "number"
+                  }
+                }
+              },
+              "degerlendirme": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "gunluk_kayitlar": {
+          "type": "array",
+          "description": "Kullanıcının her gün girdiği gerçek tüketim ve aktivite verileri",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tarih": {
+                "type": "string",
+                "format": "date"
+              },
+              "uyulan_plan_id": {
+                "type": "string"
+              },
+              "gerceklesen_kalori": {
+                "type": "number"
+              },
+              "su_tuketimi_lt": {
+                "type": "number"
+              },
+              "yapilan_egzersiz": {
+                "type": "string",
+                "description": "Örn: 30 dakika tempolu yürüyüş"
+              },
+              "uyku_suresi_saat": {
+                "type": "number"
+              },
+              "notlar_ve_hissiyat": {
+                "type": "string",
+                "description": "Kullanıcının o günkü ruh hali, zorlukları vb."
+              },
+              "ogun_kayitlari": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "ogun_adi": {
+                      "type": "string"
+                    },
+                    "tuketilen_besinler": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "kullanici_id",
+        "temel_bilgiler",
+        "hedefler"
+      ]
+    }
+  },
+  "tools": [
+    {
+      "toolId": "veritabani_islemleri",
+      "type": "DATABASE",
+      "name": "Veritabanı İşlemleri",
+      "description": "MongoDB veritabanında koleksiyon oluşturma, veri ekleme (insert_document), bulma (find_documents), güncelleme (update_document), silme (delete_document), sayma (count_documents) ve gruplama/analiz (aggregate) gibi çeşitli işlemleri yönetmek için kullanılır."
+    },
+    {
+      "toolId": "telegram_gonderici",
+      "type": "TELEGRAM",
+      "name": "Telegram Mesaj Gönderici",
+      "description": "Belirtilen kullanıcıya (chat_id kullanarak) Telegram üzerinden proaktif mesajlar göndermek için kullanılır."
+    }
+  ],
+  "workflows": [
+    {
+      "workflowId": "yeni_kullanici_kayit",
+      "description": "Yeni kullanıcı için profil oluşturma ve başlangıç diyet planı hazırlama",
+      "trigger": "yeni_kullanici",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "llm_prompt",
+          "prompt": "Kullanıcıdan temel bilgilerini al: yaş, boy, kilo, cinsiyet, aktivite seviyesi",
+          "output_variable": "temel_bilgiler",
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Kullanıcının sağlık durumunu öğren: alerjiler, kronik hastalıklar, kullandığı ilaçlar",
+          "output_variable": "saglik_bilgileri",
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "3",
+          "type": "llm_prompt",
+          "prompt": "Kullanıcının hedeflerini belirle: kilo verme/alma, kas kazanma, beslenme tercihleri",
+          "output_variable": "hedefler",
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "4",
+          "type": "tool_call",
+          "output_variable": "kayit_sonucu",
+          "toolId": "veritabani_islemleri",
+          "params": {
+            "operation": "insert_document",
+            "collection_name": "diyetisyen_kullanici_verileri",
+            "document": {
+              "kullanici_id": "$user_id",
+              "temel_bilgiler": "$temel_bilgiler",
+              "saglik_bilgileri": "$saglik_bilgileri",
+              "hedefler": "$hedefler",
+              "olusturma_tarihi": "$current_date"
+            }
+          },
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "5",
+          "type": "llm_prompt",
+          "prompt": "Toplanan bilgilere göre kişiselleştirilmiş başlangıç diyet planı oluştur",
+          "output_variable": "baslangic_plani",
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "6",
+          "type": "send_response",
+          "message": "Harika! Profilin başarıyla oluşturuldu. İşte sana özel hazırladığım başlangıç planın: $baslangic_plani. Unutma, her akşam sana gününün nasıl geçtiğini soracağım. Birlikte başaracağız! 💪",
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        }
+      ]
+    },
+    {
+      "workflowId": "gunluk_kontrol_ve_kayit",
+      "description": "Her gün kullanıcıdan beslenme ve aktivite bilgilerini alıp veritabanına kaydeder ve geri bildirimde bulunur.",
+      "trigger": "schedule:gunluk_takip_mesaji",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "tool_call",
+          "output_variable": "mesaj_gonderim_sonucu",
+          "toolId": "telegram_gonderici",
+          "params": {
+            "chat_id": "$user_id",
+            "message": "Merhaba! 👋 Bugün günün nasıl geçti? Neler yediğini, ne kadar su içtiğini ve hangi egzersizleri yaptığını kısaca anlatır mısın?"
+          },
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Kullanıcının verdiği şu cevabı analiz et ve yapılandırılmış JSON formatına dönüştür (gerceklesen_kalori, su_tuketimi_lt, yapilan_egzersiz, notlar_ve_hissiyat, ogun_kayitlari): $user_input",
+          "output_variable": "gunluk_veri_json",
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "3",
+          "type": "tool_call",
+          "output_variable": "kayit_guncelleme_sonucu",
+          "toolId": "veritabani_islemleri",
+          "params": {
+            "operation": "update_document",
+            "collection_name": "diyetisyen_kullanici_verileri",
+            "query": {
+              "kullanici_id": "$user_id"
+            },
+            "update": {
+              "$push": {
+                "gunluk_kayitlar": "$gunluk_veri_json"
+              }
+            }
+          },
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "4",
+          "type": "llm_prompt",
+          "prompt": "Kullanıcının bugünkü verilerine ($gunluk_veri_json) ve hedeflerine bakarak ona motive edici ve kısa bir geri bildirim hazırla.",
+          "output_variable": "gunluk_geri_bildirim",
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "5",
+          "type": "tool_call",
+          "output_variable": "geribildirim_gonderme_sonucu",
+          "toolId": "telegram_gonderici",
+          "params": {
+            "chat_id": "$user_id",
+            "message": "$gunluk_geri_bildirim"
+          },
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        }
+      ]
+    },
+    {
+      "workflowId": "haftalik_takip",
+      "description": "Kullanıcının haftalık ilerlemesini değerlendirme ve plan güncelleme",
+      "trigger": "schedule:haftalik_kontrol",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "tool_call",
+          "output_variable": "haftalik_analiz",
+          "toolId": "veritabani_islemleri",
+          "params": {
+            "operation": "aggregate",
+            "collection_name": "diyetisyen_kullanici_verileri",
+            "pipeline": [
+              {
+                "$match": {
+                  "kullanici_id": "$user_id"
+                }
+              },
+              {
+                "$unwind": "$gunluk_kayitlar"
+              },
+              {
+                "$group": {
+                  "_id": "$kullanici_id",
+                  "ortalama_kalori": {
+                    "$avg": "$gunluk_kayitlar.gerceklesen_kalori"
+                  },
+                  "toplam_egzersiz_sayisi": {
+                    "$sum": 1
+                  }
+                }
+              }
+            ]
+          },
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Kullanıcıdan güncel kilosunu ve bel çevresi ölçüsünü iste.",
+          "output_variable": "guncel_olcumler",
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "3",
+          "type": "llm_prompt",
+          "prompt": "Kullanıcının bu haftaki ortalama kalori alımını ($haftalik_analiz), güncel ölçümlerini ($guncel_olcumler) ve hedeflerini karşılaştırarak detaylı bir haftalık ilerleme raporu oluştur. (Tablo ve Mermaid kullan)",
+          "output_variable": "ilerleme_raporu",
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "4",
+          "type": "llm_prompt",
+          "prompt": "Bu rapora göre, gerekirse diyet planında küçük değişiklikler öner.",
+          "output_variable": "guncel_oneri",
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "5",
+          "type": "send_response",
+          "message": "İşte bu haftaki ilerleme raporun ve yeni önerilerin:\n\n$ilerleme_raporu\n\n**Öneriler:**\n$guncel_oneri",
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        }
+      ]
+    },
+    {
+      "workflowId": "gunluk_menu_onerisi",
+      "description": "Her sabah kullanıcıya motivasyon mesajı ve günün beslenme ipucunu gönderir",
+      "trigger": "schedule:gunluk_motivasyon_ve_ipucu",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "tool_call",
+          "output_variable": "kullanici_profili",
+          "toolId": "veritabani_islemleri",
+          "params": {
+            "operation": "find_documents",
+            "collection_name": "diyetisyen_kullanici_verileri",
+            "query": {
+              "kullanici_id": "$user_id"
+            }
+          },
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Kullanıcının profili ($kullanici_profili) ve hedeflerine göre bugün için kısa bir motivasyon mesajı ve pratik beslenme ipucu hazırla. Maksimum 2-3 cümle olsun.",
+          "output_variable": "gunluk_mesaj",
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        },
+        {
+          "nodeId": "3",
+          "type": "tool_call",
+          "output_variable": "mesaj_gonderim_sonucu",
+          "toolId": "telegram_gonderici",
+          "params": {
+            "chat_id": "$user_id",
+            "message": "🌅 **Günaydın!** \n\n$gunluk_mesaj\n\nBugün de harika bir gün olacak! 💪"
+          },
+          "continue_on_error": false,
+          "max_retries": 3,
+          "retry_delay": 1.0,
+          "timeout": 30,
+          "validate_input": true,
+          "sanitize_output": true
+        }
+      ]
+    }
+  ],
+  "schedules": [
+    {
+      "scheduleId": "gunluk_takip_mesaji",
+      "cron": "0 20 * * *",
+      "description": "Her akşam kullanıcıya günlük verilerini sormak için proaktif mesaj gönderir.",
+      "workflowId": "gunluk_kontrol_ve_kayit"
+    },
+    {
+      "scheduleId": "haftalik_kontrol_bildirimi",
+      "cron": "0 10 * * 1",
+      "description": "Her Pazartesi sabahı kullanıcıya haftalık kontrol ve ölçüm zamanının geldiğini hatırlatır.",
+      "workflowId": "haftalik_takip"
+    },
+    {
+      "scheduleId": "gunluk_motivasyon_ve_ipucu",
+      "cron": "0 9 * * *",
+      "description": "Her sabah kullanıcıya motivasyon mesajı ve günün beslenme ipucunu gönderir.",
+      "workflowId": "gunluk_menu_onerisi"
+    }
+  ],
+  "public": true
+}

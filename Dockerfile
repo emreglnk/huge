@@ -16,6 +16,9 @@ COPY ./app /app/app
 # Copy static files
 COPY ./app/static /app/app/static
 
+# Copy agents directory
+COPY ./agents /app/agents
+
 # Expose the port the app runs on
 EXPOSE 8000
 

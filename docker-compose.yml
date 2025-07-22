@@ -3,17 +3,26 @@ services:
     build: .
     ports:
       - "8200:8000"
-
+    volumes:
+      - ./agents:/app/agents
+      - ./app:/app/app
     env_file:
       - ./.env
     depends_on:
       - db
     environment:
-      - MONGODB_URI=mongodb://db:27017/
+      - MONGODB_URI=mongodb://admin:hugeMongo2024!@db:27017/?authSource=admin
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-your_telegram_bot_token_here}
 
 
   db:
     image: mongo:latest
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: hugeMongo2024!
+      MONGO_INITDB_DATABASE: autogen_db
     volumes:
       - mongodb_data:/data/db
       

@@ -6,7 +6,7 @@ from .security import get_password_hash
 
 async def get_user(username: str) -> Optional[UserInDB]:
     """Retrieves a user from the database by their username."""
-    user_doc = await db.users.find_one({"username": username})
+    user_doc = await db.users.find_one({"username": username}, {"_id": 0})  # Exclude _id field
     if user_doc:
         return UserInDB(**user_doc)
     return None

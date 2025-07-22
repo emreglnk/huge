@@ -49,7 +49,8 @@ async def get_llm_response(llm_config: LlmConfig, system_prompt: str, user_messa
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_message}
-                ]
+                ],
+                timeout=60.0  # 60 second timeout
             )
             return response.choices[0].message.content
         

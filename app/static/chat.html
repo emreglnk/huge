@@ -1,302 +1,607 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat with Agent</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link rel="stylesheet" href="/static/styles.css">
+    <title>Agent Chat - AI Agent Platform</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
     <style>
-        .chat-container {
-            max-width: 800px;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
-        }
-        .chat-messages {
-            height: 500px;
-            overflow-y: auto;
-            border: 1px solid #e0e0e0;
-            border-radius: 5px;
-            padding: 10px;
-            margin-bottom: 20px;
-            background-color: #f9f9f9;
-        }
-        .message {
-            margin-bottom: 15px;
-            padding: 10px;
-            border-radius: 5px;
-            max-width: 80%;
-        }
-        .user-message {
-            background-color: #e3f2fd;
-            align-self: flex-end;
-            margin-left: auto;
-        }
-        .bot-message {
-            background-color: #ffffff;
-            border: 1px solid #e0e0e0;
-        }
-        .chat-input {
+            height: 100vh;
             display: flex;
+            flex-direction: column;
         }
-        .chat-input input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #e0e0e0;
-            border-radius: 5px;
-            margin-right: 10px;
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            color: white;
         }
-        .chat-input button {
-            padding: 10px 15px;
-            background-color: #2196f3;
+
+        .header h1 {
+            font-size: 2rem;
+            margin-bottom: 5px;
+            font-weight: 300;
+        }
+
+        .header p {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .back-button {
+            background: rgba(255,255,255,0.2);
             color: white;
             border: none;
-            border-radius: 5px;
+            padding: 10px 20px;
+            border-radius: 10px;
             cursor: pointer;
-        }
-        .chat-input button:hover {
-            background-color: #0b7dda;
-        }
-        .agent-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
             margin-bottom: 20px;
+            transition: all 0.3s ease;
         }
+
+        .back-button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .chat-container {
+            flex: 1;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+        }
+
         .agent-info {
-            display: flex;
-            align-items: center;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
         }
-        .agent-avatar {
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            background-color: #2196f3;
+
+        .agent-info h3 {
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .agent-info p {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .message.user {
+            background: #667eea;
             color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 15px;
-            font-size: 20px;
+            margin-left: auto;
         }
-        .back-button {
-            text-decoration: none;
+
+        .message.bot {
+            background: #e9ecef;
             color: #333;
-            display: flex;
-            align-items: center;
         }
-        .back-button span {
-            margin-right: 5px;
+
+        .message.system {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+            font-style: italic;
+            text-align: center;
+            max-width: 100%;
+        }
+
+        /* Markup styling for messages */
+        .message h1, .message h2, .message h3 {
+            margin: 10px 0;
+            color: inherit;
+        }
+
+        .message h1 { font-size: 1.5em; }
+        .message h2 { font-size: 1.3em; }
+        .message h3 { font-size: 1.1em; }
+
+        .message p {
+            margin: 8px 0;
+            line-height: 1.5;
+        }
+
+        .message ul, .message ol {
+            margin: 8px 0;
+            padding-left: 20px;
+        }
+
+        .message li {
+            margin: 4px 0;
+        }
+
+        .message blockquote {
+            margin: 10px 0;
+            padding: 10px 15px;
+            border-left: 4px solid #667eea;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 0 5px 5px 0;
+        }
+
+        .message code {
+            background: rgba(0, 0, 0, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .message pre {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .message pre code {
+            background: none;
+            padding: 0;
+            font-size: 0.9em;
+        }
+
+        .message table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .message th, .message td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .message th {
+            background: rgba(102, 126, 234, 0.1);
+            font-weight: bold;
+        }
+
+        .message a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .message a:hover {
+            text-decoration: underline;
+        }
+
+        .message strong {
+            font-weight: bold;
+        }
+
+        .message em {
+            font-style: italic;
+        }
+
+        /* Mermaid diagram styling */
+        .message .mermaid {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 10px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        .message .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .chat-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-form input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+
+        .chat-form input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .chat-form button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .chat-form button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .chat-form button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #fcc;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .chat-container {
+                padding: 20px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="chat-container">
-        <div class="agent-header">
-            <a href="/" class="back-button">
-                <span class="material-icons">arrow_back</span> Back to Dashboard
-            </a>
-            <div class="agent-info">
-                <div class="agent-avatar" id="agent-avatar"></div>
-                <h1 id="agent-name">Loading Agent...</h1>
-            </div>
+    <div class="container">
+        <div class="header">
+            <h1 id="page-title">Agent Chat</h1>
+            <p id="page-subtitle">AI Agent ile sohbet edin</p>
         </div>
-        <div class="chat-messages" id="chat-messages"></div>
-        <div class="chat-input">
-            <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off">
-            <button id="send-button">
-                <span class="material-icons">send</span>
-            </button>
+
+        <button class="back-button" onclick="goBack()">← Ana Sayfaya Dön</button>
+
+        <div class="chat-container">
+            <div class="agent-info" id="agent-info">
+                <h3 id="agent-name">Agent yükleniyor...</h3>
+                <p id="agent-description">Lütfen bekleyin...</p>
+            </div>
+
+            <div class="chat-messages" id="chat-messages">
+                <div class="message system">
+                    Sohbet başlatılıyor...
+                </div>
+            </div>
+
+            <form class="chat-form" id="chat-form">
+                <input type="text" id="message-input" placeholder="Mesajınızı yazın..." required>
+                <button type="submit" id="send-button">Gönder</button>
+            </form>
         </div>
     </div>
 
     <script>
-        // Polyfill for crypto.randomUUID for browsers that don't support it
-        if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
-            crypto.randomUUID = function() {
-                // Simple UUID v4 implementation
-                return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
-                    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
-                );
-            };
+        let currentAgent = null;
+        let agentId = null;
+        let sessionId = null;
+        let authToken = null;
+
+        // Get agent ID from URL
+        function getAgentIdFromUrl() {
+            const path = window.location.pathname;
+            const match = path.match(/\/chat\/([^\/]+)/);
+            return match ? match[1] : null;
         }
-    
-        document.addEventListener('DOMContentLoaded', function() {
-            const chatMessages = document.getElementById('chat-messages');
-            const messageInput = document.getElementById('message-input');
-            const sendButton = document.getElementById('send-button');
-            const agentName = document.getElementById('agent-name');
-            const agentAvatar = document.getElementById('agent-avatar');
+
+        // Check authentication
+        function checkAuth() {
+            authToken = localStorage.getItem('authToken');
+            if (!authToken) {
+                window.location.href = '/';
+                return false;
+            }
+            return true;
+        }
+
+        // Fetch with authentication and handle token expiration
+        async function fetchWithAuth(url, options = {}) {
+            const headers = {
+                'Authorization': `Bearer ${authToken}`,
+                'Content-Type': 'application/json',
+                ...options.headers
+            };
+
+            const response = await fetch(url, { ...options, headers });
             
-            // Get agent ID from URL
-            const pathParts = window.location.pathname.split('/');
-            const agentId = pathParts[pathParts.length - 1];
-            
-            // Session management
-            let sessionId = localStorage.getItem(`chat_session_${agentId}`);
-            let userId = localStorage.getItem('user_id');
-            
-            // Generate user ID if not present
-            if (!userId) {
-                userId = crypto.randomUUID();
-                localStorage.setItem('user_id', userId);
+            // Check if token is expired or invalid
+            if (response.status === 401) {
+                console.log('Token expired or invalid, redirecting to login');
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                window.location.href = '/';
+                return null;
             }
             
-            async function fetchWithAuth(url, options = {}) {
-                const token = localStorage.getItem('accessToken');
-                if (!token) {
-                    addMessage('bot', 'Error: Not authenticated');
-                    return Promise.reject('Not authenticated');
-                }
+            return response;
+        }
 
-                const headers = {
-                    ...options.headers,
-                    'Authorization': `Bearer ${token}`
-                };
-
-                return fetch(url, { ...options, headers });
-            }
-
-            // Initialize agent info and load chat history
-            fetchAgentInfo();
-            fetchChatHistory();
-            
-            // Function to fetch agent information
-            function fetchAgentInfo() {
-                try {
-                    const agentData = localStorage.getItem('currentAgent');
-                    if (agentData) {
-                        const agent = JSON.parse(agentData);
-                        agentName.textContent = agent.agentName || 'AI Agent';
-                        agentAvatar.textContent = agent.agentName ? agent.agentName.charAt(0).toUpperCase() : 'A';
-                        
-                        // Add a welcome message, which will be cleared if history is found
-                        const welcomeMessage = document.createElement('div');
-                        welcomeMessage.classList.add('message', 'bot-message', 'welcome-message');
-                        welcomeMessage.innerHTML = marked.parse(`Hello! I'm ${agent.agentName}. How can I help you today?`);
-                        chatMessages.appendChild(welcomeMessage);
-                    } else {
-                        agentName.textContent = 'Agent Not Found';
-                        addMessage('bot', 'Sorry, agent data could not be loaded. Please go back to the dashboard and try again.');
-                    }
-                } catch (error) {
-                    console.error('Error loading agent info from localStorage:', error);
-                    agentName.textContent = 'Error';
-                    addMessage('bot', 'Sorry, there was an error loading this agent.');
-                }
-            }
-            
-            // Function to fetch chat history
-            async function fetchChatHistory() {
-                try {
-                    // The backend can find the latest session if sessionId is null
-                    const historyUrl = sessionId ? `/chat/history/${agentId}?session_id=${sessionId}` : `/chat/history/${agentId}`;
-                    const response = await fetchWithAuth(historyUrl);
+        // Load agent information
+        async function loadAgent() {
+            try {
+                const response = await fetchWithAuth('/agents/');
+                if (response && response.ok) {
+                    const agents = await response.json();
+                    currentAgent = agents.find(agent => agent.agentId === agentId);
                     
-                    if (response.ok) {
-                        const history = await response.json();
+                    if (currentAgent) {
+                        document.getElementById('page-title').textContent = currentAgent.agentName;
+                        document.getElementById('agent-name').textContent = currentAgent.agentName;
+                        document.getElementById('agent-description').textContent = 
+                            currentAgent.systemPrompt ? 
+                            (currentAgent.systemPrompt.length > 200 ? 
+                             currentAgent.systemPrompt.substring(0, 200) + '...' : 
+                             currentAgent.systemPrompt) : 
+                            'Açıklama bulunmuyor';
                         
-                        if (history && history.length > 0) {
-                             // Clear existing messages before adding history
-                            const welcomeMessage = chatMessages.querySelector('.welcome-message');
-                            if (welcomeMessage) welcomeMessage.remove();
-
-                            history.forEach(entry => {
-                                addMessage('user', entry.user_message);
-                                addMessage('bot', entry.agent_response);
-                            });
-                        }
+                        // Load chat history
+                        await loadChatHistory();
+                    } else {
+                        showError('Agent bulunamadı');
                     }
-                } catch (error) {
-                    console.error('Error fetching chat history:', error);
-                    // Continue without history, the welcome message will remain.
+                } else if (response) {
+                    showError('Agent bilgileri yüklenemedi');
+                }
+                // If response is null, user is being redirected to login
+            } catch (error) {
+                console.error('Error loading agent:', error);
+                // Only show error if it's not a token expiration
+                if (error.message !== 'Token expired') {
+                    showError('Bir hata oluştu');
                 }
             }
-            
-            // Add a message to the chat interface
-            function addMessage(role, content) {
-                const messageElement = document.createElement('div');
-                messageElement.classList.add('message', `${role}-message`);
+        }
 
-                if (role === 'bot') {
-                    messageElement.innerHTML = marked.parse(content);
+        // Load chat history
+        async function loadChatHistory() {
+            try {
+                const response = await fetchWithAuth(`/chat/history/${agentId}?limit=20`);
+                if (response && response.ok) {
+                    const history = await response.json();
+                    const messagesContainer = document.getElementById('chat-messages');
+                    messagesContainer.innerHTML = '';
+                    
+                    if (history.length === 0) {
+                        // No history, show welcome message
+                        messagesContainer.innerHTML = `
+                            <div class="message system">
+                                Merhaba! Ben ${currentAgent.agentName}. Size nasıl yardımcı olabilirim?
+                            </div>
+                        `;
+                    } else {
+                        // Display history messages
+                        history.forEach(msg => {
+                            // Add user message
+                            addMessage('user', msg.user_message);
+                            // Add agent response
+                            addMessage('bot', msg.agent_response);
+                        });
+                    }
                 } else {
-                    messageElement.textContent = content;
+                    // Error loading history, show welcome message
+                    document.getElementById('chat-messages').innerHTML = `
+                        <div class="message system">
+                            Merhaba! Ben ${currentAgent.agentName}. Size nasıl yardımcı olabilirim?
+                        </div>
+                    `;
                 }
+            } catch (error) {
+                console.error('Error loading chat history:', error);
+                // If it's a token error, don't show welcome message as user will be redirected
+                if (error.message !== 'Token expired') {
+                    // Show welcome message on other errors
+                    document.getElementById('chat-messages').innerHTML = `
+                        <div class="message system">
+                            Merhaba! Ben ${currentAgent.agentName}. Size nasıl yardımcı olabilirim?
+                        </div>
+                    `;
+                }
+            }
+        }
 
-                chatMessages.appendChild(messageElement);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-                return messageElement; // Return the element for manipulation (e.g., removing 'thinking' message)
+        // Add message to chat with markup support
+        function addMessage(type, content) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            // Parse markdown for bot messages, keep plain text for user messages
+            if (type === 'bot' || type === 'system') {
+                try {
+                    // Configure marked for safe HTML
+                    marked.setOptions({
+                        breaks: true,
+                        gfm: true,
+                        sanitize: false,
+                        smartLists: true,
+                        smartypants: true
+                    });
+                    
+                    messageDiv.innerHTML = marked.parse(content);
+                    
+                    // Apply syntax highlighting to code blocks
+                    messageDiv.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightElement(block);
+                    });
+                    
+                    // Process Mermaid diagrams
+                    messageDiv.querySelectorAll('code.language-mermaid').forEach((block) => {
+                        const mermaidCode = block.textContent;
+                        const mermaidDiv = document.createElement('div');
+                        mermaidDiv.className = 'mermaid';
+                        mermaidDiv.textContent = mermaidCode;
+                        
+                        // Replace the code block with mermaid div
+                        block.parentElement.replaceWith(mermaidDiv);
+                    });
+                    
+                    // Render Mermaid diagrams
+                    mermaid.run({
+                        querySelector: '.mermaid'
+                    });
+                    
+                } catch (error) {
+                    console.warn('Markdown parsing failed:', error);
+                    messageDiv.textContent = content;
+                }
+            } else {
+                messageDiv.textContent = content;
             }
             
-            // Handle send button click
-            sendButton.addEventListener('click', sendMessage);
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Show error
+        function showError(message) {
+            const chatMessages = document.getElementById('chat-messages');
+            chatMessages.innerHTML = `
+                <div class="error">
+                    ${message}
+                </div>
+            `;
+        }
+
+        // Send message
+        async function sendMessage(message) {
+            if (!message.trim()) return;
+
+            addMessage('user', message);
             
-            // Handle enter key press
-            messageInput.addEventListener('keypress', function(event) {
-                if (event.key === 'Enter') {
-                    sendMessage();
+            const sendButton = document.getElementById('send-button');
+            sendButton.disabled = true;
+            sendButton.textContent = 'Gönderiliyor...';
+
+            try {
+                const response = await fetchWithAuth(`/chat/${agentId}`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        message: message,
+                        sessionId: sessionId
+                    })
+                });
+
+                if (response && response.ok) {
+                    const data = await response.json();
+                    addMessage('bot', data.response);
+                    
+                    // Update session ID
+                    if (data.session_id) {
+                        sessionId = data.session_id;
+                    }
+                } else if (response) {
+                    const error = await response.json();
+                    addMessage('bot', `Hata: ${error.detail || 'Bilinmeyen hata'}`);
                 }
+                // If response is null, user is being redirected to login
+            } catch (error) {
+                console.error('Chat error:', error);
+                // Only show error message if it's not a token expiration
+                if (error.message !== 'Token expired') {
+                    addMessage('bot', 'Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.');
+                }
+            } finally {
+                sendButton.disabled = false;
+                sendButton.textContent = 'Gönder';
+            }
+        }
+
+        // Go back to main page
+        function goBack() {
+            window.location.href = '/';
+        }
+
+        // Event listeners
+        document.getElementById('chat-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const messageInput = document.getElementById('message-input');
+            const message = messageInput.value.trim();
+            
+            if (message) {
+                await sendMessage(message);
+                messageInput.value = '';
+            }
+        });
+
+        // Initialize
+        window.addEventListener('load', async () => {
+            if (!checkAuth()) return;
+            
+            // Initialize Mermaid
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: 'default',
+                securityLevel: 'loose',
+                fontFamily: 'inherit'
             });
             
-            // Send message function
-            async function sendMessage() {
-                const userMessage = messageInput.value.trim();
-                if (!userMessage) return;
-                
-                // Display user message
-                addMessage('user', userMessage);
-                
-                // Clear input
-                messageInput.value = '';
-
-                // Show thinking indicator
-                const thinkingMessage = addMessage('bot', 'Düşünüyor...');
-                
-                try {
-                    const response = await fetchWithAuth(`/chat/${agentId}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            message: userMessage,
-                            user_id: userId,
-                            session_id: sessionId || undefined
-                        })
-                    });
-
-                    thinkingMessage.remove(); // Remove thinking indicator
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        
-                        // Store session ID if provided
-                        if (data.session_id) {
-                            sessionId = data.session_id;
-                            localStorage.setItem(`chat_session_${agentId}`, sessionId);
-                        }
-                        
-                        // Add bot's response
-                        addMessage('bot', data.response || 'Sorry, I couldn\'t process that.');
-                        
-                        // Handle workflow execution results if present
-                        if (data.status && data.status.includes('Workflow') && data.final_context) {
-                            console.log('Workflow executed:', data.final_context);
-                            // You could display additional UI for workflow results
-                        }
-                    } else {
-                        const errorData = await response.json();
-                        addMessage('bot', `Error: ${errorData.detail || 'Unknown error'}`);
-                    }
-                } catch (error) {
-                    thinkingMessage.remove(); // Remove thinking indicator on error
-                    console.error('Error sending message:', error);
-                    addMessage('bot', 'Sorry, there was an error processing your request. Please try again.');
-                }
+            agentId = getAgentIdFromUrl();
+            if (!agentId) {
+                showError('Geçersiz agent ID');
+                return;
             }
+
+            await loadAgent();
         });
     </script>
 </body>

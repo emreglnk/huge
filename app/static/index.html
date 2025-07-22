@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Agent Platform</title>
+    <title>Huge</title>
     <style>
         * {
             margin: 0;
@@ -241,6 +241,14 @@
             color: #333;
         }
 
+        .message.status {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+            font-style: italic;
+            text-align: center;
+        }
+
         .chat-form {
             display: flex;
             gap: 10px;
@@ -309,40 +317,80 @@
 </head>
 <body>
     <div class="container">
+        <!-- Header -->
         <div class="header">
-            <h1>AI Agent Platform</h1>
-            <p>Kendi AI Agent'larınızı oluşturun ve yönetin</p>
+            <h1>Huge</h1>
+            <p>AI Agent Platform</p>
+            <div id="user-actions" style="display: none; margin-top: 15px;">
+                <button onclick="showTelegramAuth()" class="btn" style="background: rgba(255,255,255,0.2); color: white; margin-right: 10px; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer;">📱 Telegram Bağla</button>
+                <button onclick="logout()" class="btn" style="background: rgba(255,255,255,0.2); color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer;">Çıkış</button>
+            </div>
         </div>
 
         <!-- Auth Section -->
         <div id="auth-section" class="auth-section">
-            <h2>Giriş Yapın</h2>
-            <form id="login-form">
-                <div class="form-group">
-                    <label for="username">Kullanıcı Adı:</label>
-                    <input type="text" id="username" name="username" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">Şifre:</label>
-                    <input type="password" id="password" name="password" required>
-                </div>
-                <button type="submit" class="btn btn-primary">Giriş Yap</button>
-            </form>
+            <!-- Auth Tabs -->
+            <div class="auth-tabs" style="display: flex; justify-content: center; margin-bottom: 30px; border-bottom: 2px solid #f0f0f0;">
+                <button class="auth-tab active" data-auth-tab="login" style="padding: 15px 30px; background: none; border: none; font-size: 1.1rem; cursor: pointer; color: #667eea; border-bottom: 3px solid #667eea;">Giriş Yap</button>
+                <button class="auth-tab" data-auth-tab="register" style="padding: 15px 30px; background: none; border: none; font-size: 1.1rem; cursor: pointer; color: #666; border-bottom: 3px solid transparent;">Kayıt Ol</button>
+            </div>
+
+            <!-- Login Form -->
+            <div id="login-tab" class="auth-tab-content">
+                <h2>Giriş Yapın</h2>
+                <form id="login-form">
+                    <div class="form-group">
+                        <label for="username">Kullanıcı Adı:</label>
+                        <input type="text" id="username" name="username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Şifre:</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Giriş Yap</button>
+                </form>
+            </div>
+
+            <!-- Register Form -->
+            <div id="register-tab" class="auth-tab-content" style="display: none;">
+                <h2>Kayıt Olun</h2>
+                <form id="register-form">
+                    <div class="form-group">
+                        <label for="reg-username">Kullanıcı Adı:</label>
+                        <input type="text" id="reg-username" name="username" required minlength="3" maxlength="20">
+                        <small style="color: #666; font-size: 0.9em;">3-20 karakter, sadece harf, rakam ve alt çizgi</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password">Şifre:</label>
+                        <input type="password" id="reg-password" name="password" required minlength="6">
+                        <small style="color: #666; font-size: 0.9em;">En az 6 karakter</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-password-confirm">Şifre Tekrar:</label>
+                        <input type="password" id="reg-password-confirm" name="password-confirm" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-email">E-posta (Opsiyonel):</label>
+                        <input type="email" id="reg-email" name="email">
+                        <small style="color: #666; font-size: 0.9em;">Şifre sıfırlama için kullanılabilir</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Kayıt Ol</button>
+                </form>
+            </div>
         </div>
 
         <!-- Main Content -->
         <div id="main-content" class="main-content">
             <div class="nav-tabs">
-                <button class="nav-tab active" data-tab="dashboard">Ana Sayfa</button>
-                <button class="nav-tab" data-tab="agents">Agent'larım</button>
-                <button class="nav-tab" data-tab="create">Yeni Agent</button>
+                <button class="nav-tab active" data-tab="dashboard">🏠</button>
+                <button class="nav-tab" data-tab="agents">🤖</button>
+                <button class="nav-tab" data-tab="public">🌍</button>
+                <button class="nav-tab" data-tab="create">➕</button>
             </div>
 
             <!-- Dashboard Tab -->
             <div id="dashboard" class="tab-content active">
-                <h2>Hoş Geldiniz!</h2>
-                <p>AI Agent Platform'a hoş geldiniz. Buradan agent'larınızı yönetebilir ve yenilerini oluşturabilirsiniz.</p>
-                
+
                 <div class="agents-grid" id="dashboard-agents">
                     <!-- Agents will be loaded here -->
                 </div>
@@ -350,16 +398,24 @@
 
             <!-- Agents Tab -->
             <div id="agents" class="tab-content">
-                <h2>Agent'larım</h2>
                 <div class="agents-grid" id="agents-list">
                     <!-- Agents will be loaded here -->
                 </div>
             </div>
 
+            <!-- Public Agents Tab -->
+            <div id="public" class="tab-content">
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <h2>Herkese Açık Agent'lar</h2>
+                    <p>Diğer kullanıcılar tarafından paylaşılan agent'ları keşfedin ve kopyalayın.</p>
+                </div>
+                <div class="agents-grid" id="public-agents-list">
+                    <!-- Public agents will be loaded here -->
+                </div>
+            </div>
+
             <!-- Create Agent Tab -->
             <div id="create" class="tab-content">
-                <h2>Yeni Agent Oluştur</h2>
-                <p>Master Agent ile konuşarak yeni bir AI agent oluşturun. İhtiyaçlarınızı açıklayın, gerisini Master Agent halleder!</p>
                 
                 <div class="chat-section">
                     <div class="chat-messages" id="chat-messages">
@@ -389,7 +445,7 @@
                 formData.append('username', username);
                 formData.append('password', password);
 
-                const response = await fetch('/auth/login', {
+                const response = await fetch('/token', {
                     method: 'POST',
                     body: formData
                 });
@@ -402,17 +458,54 @@
                     localStorage.setItem('currentUser', currentUser);
                     showMainContent();
                     loadAgents();
+                    return true;
                 } else {
-                    throw new Error('Giriş başarısız');
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Giriş başarısız');
                 }
             } catch (error) {
                 alert('Giriş hatası: ' + error.message);
+                throw error;
+            }
+        }
+
+        // Register function
+        async function register(username, password, email = '') {
+            try {
+                const userData = {
+                    username: username,
+                    password: password
+                };
+                
+                if (email) {
+                    userData.email = email;
+                }
+
+                const response = await fetch('/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(userData)
+                });
+
+                if (response.ok) {
+                    return true;
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Kayıt başarısız');
+                }
+            } catch (error) {
+                console.error('Register error:', error);
+                throw error;
             }
         }
 
         async function fetchWithAuth(url, options = {}) {
             const token = localStorage.getItem('authToken');
             if (!token) {
+                console.log('No auth token found, showing auth section');
+                showAuthSection();
                 throw new Error('No auth token');
             }
 
@@ -422,12 +515,32 @@
                 ...options.headers
             };
 
-            return fetch(url, { ...options, headers });
+            const response = await fetch(url, { ...options, headers });
+            
+            // Check if token is expired or invalid
+            if (response.status === 401) {
+                console.log('Token expired or invalid, showing auth section');
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                authToken = null;
+                currentUser = null;
+                showAuthSection();
+                throw new Error('Token expired');
+            }
+            
+            return response;
         }
 
         function showMainContent() {
             document.getElementById('auth-section').style.display = 'none';
             document.getElementById('main-content').style.display = 'block';
+            document.getElementById('user-actions').style.display = 'block';
+        }
+
+        function showAuthSection() {
+            document.getElementById('main-content').style.display = 'none';
+            document.getElementById('auth-section').style.display = 'block';
+            document.getElementById('user-actions').style.display = 'none';
         }
 
         // Tab switching
@@ -448,6 +561,8 @@
                 // Load agents if switching to agents tab
                 if (tabName === 'agents') {
                     loadAgents();
+                } else if (tabName === 'public') {
+                    loadPublicAgents();
                 }
             });
         });
@@ -456,12 +571,17 @@
         async function loadAgents() {
             try {
                 const response = await fetchWithAuth('/agents/');
-                if (response.ok) {
+                if (response && response.ok) {
                     const agents = await response.json();
                     displayAgents(agents);
                 }
+                // If response is null, user is being redirected to login
             } catch (error) {
                 console.error('Error loading agents:', error);
+                // Only show error if it's not a token expiration
+                if (error.message !== 'Token expired') {
+                    console.warn('Failed to load agents, but continuing...');
+                }
             }
         }
 
@@ -473,6 +593,82 @@
             
             agentsContainer.innerHTML = agentCards;
             dashboardContainer.innerHTML = agentCards;
+        }
+
+        // Load public agents
+        async function loadPublicAgents() {
+            try {
+                const response = await fetch('/agents/public');
+                if (response.ok) {
+                    const publicAgents = await response.json();
+                    displayPublicAgents(publicAgents);
+                } else {
+                    console.error('Error loading public agents:', response.status);
+                    document.getElementById('public-agents-list').innerHTML = '<p style="text-align: center; color: #666;">Herkese açık agent bulunamadı.</p>';
+                }
+            } catch (error) {
+                console.error('Error loading public agents:', error);
+                document.getElementById('public-agents-list').innerHTML = '<p style="text-align: center; color: #666;">Herkese açık agent\'lar yüklenirken hata oluştu.</p>';
+            }
+        }
+
+        function displayPublicAgents(agents) {
+            if (agents.length === 0) {
+                document.getElementById('public-agents-list').innerHTML = '<p style="text-align: center; color: #666;">Henüz herkese açık agent bulunmuyor.</p>';
+                return;
+            }
+            
+            const publicAgentCards = agents.map(agent => createPublicAgentCard(agent)).join('');
+            document.getElementById('public-agents-list').innerHTML = publicAgentCards;
+        }
+
+        function createPublicAgentCard(agent) {
+            const description = agent.systemPrompt ? 
+                (agent.systemPrompt.length > 150 ? agent.systemPrompt.substring(0, 150) + '...' : agent.systemPrompt) : 
+                'Açıklama bulunmuyor';
+            
+            const toolsInfo = agent.tools && agent.tools.length > 0 ? 
+                `<div class="agent-tools">🛠️ ${agent.tools.length} araç</div>` : 
+                '';
+
+            return `
+                <div class="agent-card">
+                    <h3>${agent.agentName}</h3>
+                    <div class="agent-owner">👤 ${agent.owner}</div>
+                    <p>${description}</p>
+                    ${toolsInfo}
+                    <div class="agent-actions">
+                        <button class="btn btn-primary" onclick="copyPublicAgent('${agent.agentId}')">Kopyala</button>
+                        <button class="btn btn-secondary" onclick="viewPublicAgent('${agent.agentId}')">Detay</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function copyPublicAgent(agentId) {
+            if (confirm('Bu agent\'ı kendi koleksiyonunuza kopyalamak istediğinizden emin misiniz?')) {
+                try {
+                    const response = await fetchWithAuth(`/agents/public/${agentId}/copy`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        alert('Agent başarıyla kopyalandı! Artık kendi agent\'larınız arasında görünecek.');
+                        // Optionally switch to agents tab
+                        document.querySelector('[data-tab="agents"]').click();
+                    } else {
+                        const error = await response.json();
+                        alert('Kopyalama başarısız: ' + (error.detail || 'Bilinmeyen hata'));
+                    }
+                } catch (error) {
+                    alert('Hata: ' + error.message);
+                }
+            }
+        }
+
+        function viewPublicAgent(agentId) {
+            alert(`Public agent detayları: ${agentId}`);
         }
 
         function createAgentCard(agent) {
@@ -492,6 +688,9 @@
                     <div class="agent-actions">
                         <button class="btn btn-primary" onclick="chatWithAgent('${agent.agentId}')">Sohbet Et</button>
                         <button class="btn btn-secondary" onclick="viewAgent('${agent.agentId}')">Detay</button>
+                        <button class="btn" style="background: #28a745; color: white;" onclick="editAgent('${agent.agentId}')">Düzenle</button>
+                        <button class="btn" style="background: #17a2b8; color: white;" onclick="shareAgent('${agent.agentId}')">Paylaş</button>
+                        <button class="btn" style="background: #dc3545; color: white;" onclick="deleteAgent('${agent.agentId}')">Sil</button>
                     </div>
                 </div>
             `;
@@ -505,6 +704,329 @@
             alert(`Agent detayları: ${agentId}`);
         }
 
+        // Agent edit and share functions
+        async function editAgent(agentId) {
+            try {
+                const response = await fetchWithAuth(`/agents/${agentId}`);
+                if (response.ok) {
+                    const agent = await response.json();
+                    showEditAgentModal(agent);
+                } else {
+                    alert('Agent bilgileri yüklenemedi.');
+                }
+            } catch (error) {
+                alert('Hata: ' + error.message);
+            }
+        }
+
+        async function shareAgent(agentId) {
+            if (confirm('Bu agent\'ı herkese açık hale getirmek istediğinizden emin misiniz?')) {
+                try {
+                    const response = await fetchWithAuth(`/agents/${agentId}/share`, {
+                        method: 'POST'
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        alert('Agent başarıyla paylaşıldı! Artık herkes bu agent\'ı kopyalayabilir.');
+                        loadAgents(); // Refresh agent list
+                    } else {
+                        const error = await response.json();
+                        alert('Paylaşım başarısız: ' + (error.detail || 'Bilinmeyen hata'));
+                    }
+                } catch (error) {
+                    alert('Hata: ' + error.message);
+                }
+            }
+        }
+
+        function showEditAgentModal(agent) {
+            // Create modal HTML
+            const modalHTML = `
+                <div id="edit-agent-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+                    <div style="background: white; padding: 30px; border-radius: 15px; width: 95%; max-width: 800px; max-height: 90vh; overflow-y: auto;">
+                        <h2>Agent Düzenle: ${agent.agentName}</h2>
+                        <form id="edit-agent-form">
+                            <!-- Basic Information -->
+                            <div class="form-group">
+                                <label for="edit-agent-name">Agent Adı:</label>
+                                <input type="text" id="edit-agent-name" value="${agent.agentName}" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-system-prompt">Sistem Promptu:</label>
+                                <textarea id="edit-system-prompt" rows="4" required>${agent.systemPrompt || ''}</textarea>
+                            </div>
+                            
+                            <!-- LLM Configuration -->
+                            <div class="form-group">
+                                <label for="edit-llm-provider">LLM Sağlayıcısı:</label>
+                                <select id="edit-llm-provider">
+                                    <option value="openai" ${agent.llmConfig?.provider === 'openai' ? 'selected' : ''}>OpenAI</option>
+                                    <option value="deepseek" ${agent.llmConfig?.provider === 'deepseek' ? 'selected' : ''}>DeepSeek</option>
+                                    <option value="gemini" ${agent.llmConfig?.provider === 'gemini' ? 'selected' : ''}>Gemini</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="edit-llm-model">Model:</label>
+                                <input type="text" id="edit-llm-model" value="${agent.llmConfig?.model || ''}" required>
+                            </div>
+                            
+                            <!-- Tools Configuration -->
+                            <div class="form-group">
+                                <label for="edit-tools">Tools (JSON Format):</label>
+                                <textarea id="edit-tools" rows="6" placeholder='[{"name": "tool_name", "description": "Tool description", "parameters": {}}]'>${JSON.stringify(agent.tools || [], null, 2)}</textarea>
+                                <small style="color: #666;">JSON formatında tool tanımları. Boş bırakılabilir.</small>
+                            </div>
+                            
+                            <!-- Workflows Configuration -->
+                            <div class="form-group">
+                                <label for="edit-workflows">Workflows (JSON Format):</label>
+                                <textarea id="edit-workflows" rows="6" placeholder='[{"name": "workflow_name", "steps": [], "triggers": []}]'>${JSON.stringify(agent.workflows || [], null, 2)}</textarea>
+                                <small style="color: #666;">JSON formatında workflow tanımları. Boş bırakılabilir.</small>
+                            </div>
+                            
+                            <!-- Data Schema Configuration -->
+                            <div class="form-group">
+                                <label for="edit-data-schema">Data Schema (JSON Format):</label>
+                                <textarea id="edit-data-schema" rows="6" placeholder='{"type": "object", "properties": {}}'>${JSON.stringify(agent.dataSchema || {}, null, 2)}</textarea>
+                                <small style="color: #666;">JSON Schema formatında veri yapısı tanımı. Boş bırakılabilir.</small>
+                            </div>
+                            
+                            <!-- Schedules Configuration -->
+                            <div class="form-group">
+                                <label for="edit-schedules">Schedules (JSON Format):</label>
+                                <textarea id="edit-schedules" rows="4" placeholder='[{"cron": "0 9 * * *", "action": "daily_task"}]'>${JSON.stringify(agent.schedules || [], null, 2)}</textarea>
+                                <small style="color: #666;">JSON formatında zamanlama tanımları. Boş bırakılabilir.</small>
+                            </div>
+                            
+                            <!-- Additional Configuration -->
+                            <div class="form-group">
+                                <label for="edit-config">Additional Config (JSON Format):</label>
+                                <textarea id="edit-config" rows="4" placeholder='{"key": "value"}'>${JSON.stringify(agent.config || {}, null, 2)}</textarea>
+                                <small style="color: #666;">Ek konfigürasyon ayarları. Boş bırakılabilir.</small>
+                            </div>
+                            
+                            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                                <button type="submit" class="btn btn-primary">Kaydet</button>
+                                <button type="button" class="btn btn-secondary" onclick="closeEditAgentModal()">İptal</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            
+            // Add modal to page
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+            
+            // Add form submit handler
+            document.getElementById('edit-agent-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await updateAgent(agent.agentId);
+            });
+        }
+
+        function closeEditAgentModal() {
+            const modal = document.getElementById('edit-agent-modal');
+            if (modal) {
+                modal.remove();
+            }
+        }
+
+        async function updateAgent(agentId) {
+            try {
+                // Helper function to parse JSON safely
+                function parseJSONField(fieldId, defaultValue = null) {
+                    const value = document.getElementById(fieldId).value.trim();
+                    if (!value) return defaultValue;
+                    
+                    try {
+                        return JSON.parse(value);
+                    } catch (e) {
+                        throw new Error(`${fieldId} alanında geçersiz JSON formatı: ${e.message}`);
+                    }
+                }
+                
+                const updateData = {
+                    agentName: document.getElementById('edit-agent-name').value,
+                    systemPrompt: document.getElementById('edit-system-prompt').value,
+                    llmConfig: {
+                        provider: document.getElementById('edit-llm-provider').value,
+                        model: document.getElementById('edit-llm-model').value
+                    }
+                };
+                
+                // Parse and add optional JSON fields
+                const tools = parseJSONField('edit-tools', []);
+                if (tools !== null) updateData.tools = tools;
+                
+                const workflows = parseJSONField('edit-workflows', []);
+                if (workflows !== null) updateData.workflows = workflows;
+                
+                const dataSchema = parseJSONField('edit-data-schema', {});
+                if (dataSchema !== null) updateData.dataSchema = dataSchema;
+                
+                const schedules = parseJSONField('edit-schedules', []);
+                if (schedules !== null) updateData.schedules = schedules;
+                
+                const config = parseJSONField('edit-config', {});
+                if (config !== null) updateData.config = config;
+                
+                console.log('Update data:', updateData);
+                
+                const response = await fetchWithAuth(`/agents/${agentId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(updateData)
+                });
+                
+                if (response.ok) {
+                    alert('Agent başarıyla güncellendi!');
+                    closeEditAgentModal();
+                    loadAgents(); // Refresh agent list
+                } else {
+                    const error = await response.json();
+                    alert('Güncelleme başarısız: ' + (error.detail || 'Bilinmeyen hata'));
+                }
+            } catch (error) {
+                alert('Hata: ' + error.message);
+                console.error('Update agent error:', error);
+            }
+        }
+
+        // Agent delete function
+        async function deleteAgent(agentId) {
+            if (confirm('Bu agent\'ı kalıcı olarak silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz!')) {
+                try {
+                    const response = await fetchWithAuth(`/agents/${agentId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        alert('Agent başarıyla silindi!');
+                        loadAgents(); // Refresh agent list
+                    } else {
+                        const error = await response.json();
+                        alert('Silme başarısız: ' + (error.detail || 'Bilinmeyen hata'));
+                    }
+                } catch (error) {
+                    alert('Hata: ' + error.message);
+                }
+            }
+        }
+
+        // Telegram authentication functions
+        async function showTelegramAuth() {
+            try {
+                // Check current status first
+                const statusResponse = await fetchWithAuth('/telegram/auth/status');
+                if (statusResponse && statusResponse.ok) {
+                    const status = await statusResponse.json();
+                    
+                    if (status.is_connected) {
+                        const disconnect = confirm(`Telegram hesabınız zaten bağlı (Chat ID: ${status.chat_id}). Bağlantıyı kesmek ister misiniz?`);
+                        if (disconnect) {
+                            await disconnectTelegram();
+                        }
+                        return;
+                    }
+                }
+                
+                // Request new auth code
+                const response = await fetchWithAuth('/telegram/auth/request', {
+                    method: 'POST'
+                });
+                
+                if (response && response.ok) {
+                    const data = await response.json();
+                    
+                    // Show auth code modal
+                    const modal = document.createElement('div');
+                    modal.style.cssText = `
+                        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+                        background: rgba(0,0,0,0.7); display: flex; align-items: center; 
+                        justify-content: center; z-index: 1000;
+                    `;
+                    
+                    modal.innerHTML = `
+                        <div style="background: white; padding: 30px; border-radius: 15px; max-width: 500px; text-align: center;">
+                            <h3>Telegram Hesabınızı Bağlayın</h3>
+                            <p>Aşağıdaki kodu Telegram bot'una gönderin:</p>
+                            <div style="background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0; font-size: 24px; font-weight: bold; letter-spacing: 2px;">
+                                ${data.auth_code}
+                            </div>
+                            <p style="color: #666; margin-bottom: 20px;">Kod 10 dakika geçerlidir</p>
+                            <div style="margin: 20px 0;">
+                                <a href="${data.telegram_link}" target="_blank" style="display: inline-block; background: #0088cc; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-right: 10px;">
+                                    📱 Bot'u Aç
+                                </a>
+                                <button onclick="copyToClipboard('${data.auth_code}')" style="background: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                                    📋 Kodu Kopyala
+                                </button>
+                            </div>
+                            <button onclick="this.parentElement.parentElement.remove()" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-top: 10px;">
+                                Kapat
+                            </button>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(modal);
+                } else if (response) {
+                    const error = await response.json();
+                    alert(`Hata: ${error.detail || 'Bilinmeyen hata'}`);
+                }
+            } catch (error) {
+                console.error('Telegram auth error:', error);
+                if (error.message !== 'Token expired') {
+                    alert('Telegram bağlantı hatası');
+                }
+            }
+        }
+
+        async function disconnectTelegram() {
+            try {
+                const response = await fetchWithAuth('/telegram/auth/revoke', {
+                    method: 'DELETE'
+                });
+                
+                if (response && response.ok) {
+                    const data = await response.json();
+                    alert(data.message);
+                } else if (response) {
+                    const error = await response.json();
+                    alert(`Hata: ${error.detail || 'Bilinmeyen hata'}`);
+                }
+            } catch (error) {
+                console.error('Telegram disconnect error:', error);
+                if (error.message !== 'Token expired') {
+                    alert('Telegram bağlantı kesme hatası');
+                }
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Kod kopyalandı!');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('Kod kopyalandı!');
+            });
+        }
+
+        function logout() {
+            if (confirm('Çıkış yapmak istediğinizden emin misiniz?')) {
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('currentUser');
+                authToken = null;
+                currentUser = null;
+                showAuthSection();
+            }
+        }
+
         // Chat functionality for Master Agent
         function addMessage(type, content) {
             const messagesContainer = document.getElementById('chat-messages');
@@ -513,16 +1035,100 @@
             messageDiv.textContent = content;
             messagesContainer.appendChild(messageDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            return messageDiv;
         }
+
+        function addStatusMessage(content) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message status';
+            messageDiv.innerHTML = `<em>${content}</em>`;
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            return messageDiv;
+        }
+
+        function updateMessage(messageElement, content) {
+            messageElement.textContent = content;
+        }
+
+        // Auth tab switching
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const authTabName = tab.dataset.authTab;
+                
+                // Update tab styles
+                document.querySelectorAll('.auth-tab').forEach(t => {
+                    t.classList.remove('active');
+                    t.style.color = '#666';
+                    t.style.borderBottomColor = 'transparent';
+                });
+                
+                tab.classList.add('active');
+                tab.style.color = '#667eea';
+                tab.style.borderBottomColor = '#667eea';
+                
+                // Show/hide tab content
+                document.querySelectorAll('.auth-tab-content').forEach(content => {
+                    content.style.display = 'none';
+                });
+                
+                document.getElementById(authTabName + '-tab').style.display = 'block';
+            });
+        });
 
         // Event listeners
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-            await login(username, password);
+            
+            try {
+                const success = await login(username, password);
+                if (success) {
+                    showMainContent();
+                    loadAgents();
+                }
+            } catch (error) {
+                alert('Giriş başarısız: ' + error.message);
+            }
         });
 
+        // Register form event listener
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('reg-username').value;
+            const password = document.getElementById('reg-password').value;
+            const passwordConfirm = document.getElementById('reg-password-confirm').value;
+            const email = document.getElementById('reg-email').value;
+            
+            // Validation
+            if (password !== passwordConfirm) {
+                alert('Şifreler eşleşmiyor!');
+                return;
+            }
+            
+            if (!/^[a-zA-Z0-9_]{3,20}$/.test(username)) {
+                alert('Kullanıcı adı 3-20 karakter olmalı ve sadece harf, rakam, alt çizgi içerebilir!');
+                return;
+            }
+            
+            try {
+                const success = await register(username, password, email);
+                if (success) {
+                    alert('Kayıt başarılı! Şimdi giriş yapabilirsiniz.');
+                    // Switch to login tab
+                    document.querySelector('[data-auth-tab="login"]').click();
+                    // Clear register form
+                    document.getElementById('register-form').reset();
+                }
+            } catch (error) {
+                alert('Kayıt başarısız: ' + error.message);
+            }
+        });
+
+        // Chat form event listener
         document.getElementById('chat-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const messageInput = document.getElementById('message-input');
@@ -533,8 +1139,11 @@
             addMessage('user', userMessage);
             messageInput.value = '';
 
+            // Add status message
+            let statusMessage = addStatusMessage('Master Agent düşünüyor...');
+
             try {
-                const response = await fetchWithAuth('/master-agent/conversation', {
+                const response = await fetchWithAuth('/master-agent/stream', {
                     method: 'POST',
                     body: JSON.stringify({
                         message: userMessage,
@@ -542,28 +1151,63 @@
                     })
                 });
 
-                if (response.ok) {
-                    const data = await response.json();
-                    conversationData = data;
+                if (response && response.ok) {
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
                     
-                    const lastMessage = data.messages[data.messages.length - 1];
-                    if (lastMessage && lastMessage.role === 'assistant') {
-                        addMessage('bot', lastMessage.content);
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+                        
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.substring(6));
+                                    
+                                    if (data.type === 'status') {
+                                        updateMessage(statusMessage, data.message);
+                                    } else if (data.type === 'conversation') {
+                                        // Remove status message
+                                        statusMessage.remove();
+                                        
+                                        conversationData = data.data;
+                                        const lastMessage = data.data.messages[data.data.messages.length - 1];
+                                        if (lastMessage && lastMessage.role === 'assistant') {
+                                            addMessage('bot', lastMessage.content);
+                                        }
+                                    } else if (data.type === 'success') {
+                                        addMessage('bot', `🎉 ${data.message}`);
+                                        setTimeout(() => {
+                                            loadAgents();
+                                        }, 1000);
+                                    } else if (data.type === 'error') {
+                                        addMessage('bot', `❌ ${data.message}`);
+                                    } else if (data.type === 'complete') {
+                                        // Stream completed
+                                        if (statusMessage.parentNode) {
+                                            statusMessage.remove();
+                                        }
+                                    }
+                                } catch (parseError) {
+                                    console.error('Error parsing SSE data:', parseError);
+                                }
+                            }
+                        }
                     }
-                    
-                    if (data.completed) {
-                        addMessage('bot', '🎉 Agent başarıyla oluşturuldu! Agent\'larım sekmesinden görüntüleyebilirsiniz.');
-                        setTimeout(() => {
-                            loadAgents();
-                        }, 1000);
-                    }
-                } else {
+                } else if (response) {
                     const error = await response.json();
-                    addMessage('bot', `Hata: ${error.detail || 'Bilinmeyen hata'}`);
+                    updateMessage(statusMessage, `Hata: ${error.detail || 'Bilinmeyen hata'}`);
                 }
+                // If response is null, user is being redirected to login
             } catch (error) {
                 console.error('Chat error:', error);
-                addMessage('bot', 'Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.');
+                // Only show error if it's not a token expiration
+                if (error.message !== 'Token expired') {
+                    updateMessage(statusMessage, 'Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.');
+                }
             }
         });
 

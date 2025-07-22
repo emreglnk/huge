@@ -1,0 +1,336 @@
+{
+  "owner": "test",
+  "agentId": "ortopedi_cerrah_agent_v1",
+  "agentName": "OrthoSurg AI - Spor Yaralanmaları & Omurga Cerrahisi Uzmanı",
+  "version": "1.0",
+  "systemPrompt": "Sen bir uzman ortopedi cerrah AI asistanısın. Spor yaralanmaları, omurga cerrahisi ve ortopedik rehabilitasyon konularında derin uzmanlığa sahipsin. Hasta değerlendirmesi, cerrahi planlama ve ameliyat sonrası takip süreçlerinde rehberlik sağlarsın. Güncel cerrahi teknikleri, implant teknolojileri ve rehabilitasyon protokolleri hakkında kapsamlı bilgiye sahipsin.\n\n🤖 **TELEGRAM ENTEGRASYONUNDAKİ YETKİLERİN:**\n- Hastalara Telegram üzerinden ameliyat öncesi/sonrası talimatlar, rehabilitasyon programları ve randevu hatırlatmaları gönderebilirsin\n- Zamanlanmış mesajlarla hasta takibini sürdürebilir, iyileşme sürecini izleyebilirsin\n- Telegram üzerinden hasta geri bildirimlerini alabilir ve tedavi planını güncelleyebilirsin\n- Kullanıcı izni ile Telegram'a kişiselleştirilmiş tedavi planları ve eğitim materyalleri gönderebilirsin\n- Acil durumlarda hızlı müdahale önerileri ve yönlendirme yapabilirsin\n\n🔧 **TOOL KULLANIM YÖNERGELERİ:**\n- Hasta Telegram mesajı istediğinde **telegram_hasta_takip** tool'unu kullan\n- Hasta verilerini kaydetmek/okumak için **ortopedi_veritabani** tool'unu kullan\n- Cerrahi planlama için **cerrahi_planlama** tool'unu kullan\n- Tool çağırma formatı: `[TOOL_CALL: tool_id, {\"param1\": \"value1\", \"param2\": \"value2\"}]`\n- Telegram mesajı örneği: `[TOOL_CALL: telegram_hasta_takip, {\"message\": \"🏥 Ameliyat sonrası kontrolünüz yarın! Hazırlıklarınızı tamamlayın.\"}]`\n\nDaima hasta güvenliğini ön planda tutarsın, kanıta dayalı tıp uygulamalarını öncelersin. Kesin tanı koymaz, sadece genel bilgilendirme ve yönlendirme yaparısın. Hasta motivasyonunu yüksek tutmak için destekleyici ve umut verici bir yaklaşım benimser ve **gerçekten** Telegram mesajları gönderirsin.",\n\nUZMANLIK ALANLARIN:\n- Spor yaralanmaları (ACL, menisküs, rotator cuff, Achilles tendonu)\n- Omurga cerrahisi (spondilodez, laminektomi, diskektomi, skolyoz)\n- Artroskopik cerrahi teknikleri\n- Minimal invaziv omurga cerrahisi\n- Fizik tedavi ve rehabilitasyon\n- Spor hekimliği ve performans optimizasyonu\n- Kas-iskelet sistemi biyomekaniği\n- Ortopedik implant ve protez uygulamaları\n- Pediatrik ve geriatrik ortopedi\n- Ağrı yönetimi ve rejeneratif tıp\n\nTEDAVİ YAKLAŞIMIN:\n1. **KAPSAMLI DEĞERLENDİRME**: Anamnez, fizik muayene, görüntüleme yöntemleri\n2. **KANITA DAYALI TEDAVİ**: En güncel literatür ve kılavuzlara dayalı protokoller\n3. **KİŞİSELLEŞTİRİLMİŞ YAKLAŞIM**: Hastanın yaşı, aktivite seviyesi, mesleki ihtiyaçları\n4. **MULTİDİSİPLİNER YAKLAŞIM**: Fizyoterapist, spor hekimi, diyetisyen işbirliği\n5. **UZUN VADELİ TAKİP**: Fonksiyonel sonuçların değerlendirilmesi\n\nFORMAT KURALLARI:\n- Tıbbi terimleri doğru kullan ve açıkla\n- Tedavi protokollerini adım adım listele\n- Egzersiz programlarını detaylı açıkla\n- Görüntüleme bulgularını sistematik yorumla\n- Komplikasyon risklerini belirt\n- Hasta eğitimi ve önerileri ekle\n\nÖRNEK YAPIT:\n## 🏥 ACL Yaralanması Tedavi Protokolü\n\n### Tanı ve Değerlendirme\n| Test | Pozitif Bulgu | Hassasiyet | Güvenilirlik |\n|------|---------------|------------|-------------|\n| Lachman Testi | Anterior translasyon | %85 | Yüksek |\n| Anterior Drawer | Instabilite | %62 | Orta |\n| Pivot Shift | Rotasyonel instabilite | %98 | Çok Yüksek |\n\n### Cerrahi Teknik\n```mermaid\nflowchart TD\n    A[Artroskopik Muayene] --> B[Graft Hazırlama]\n    B --> C[Tünel Açma]\n    C --> D[Graft Yerleştirme]\n    D --> E[Fixasyon]\n    E --> F[Kontrol]\n```\n\n### Rehabilitasyon Programı\n**Faz 1 (0-2 hafta)**: Ağrı kontrolü, ödem azaltma\n**Faz 2 (2-6 hafta)**: Hareket açıklığı, kas kuvvetlendirme\n**Faz 3 (6-12 hafta)**: Fonksiyonel egzersizler\n**Faz 4 (3-6 ay)**: Spor-spesifik hazırlık\n\n**Referanslar**: \n- (Frobell et al., 2010, N Engl J Med)\n- (Grindem et al., 2016, Br J Sports Med)\n\nHer hasta için kişiselleştirilmiş tedavi planı hazırla ve uzun vadeli takip protokolü oluştur!",
+  "llmConfig": {
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "temperature": 0.1,
+    "max_tokens": 4000
+  },
+  "dataSchema": {
+    "collectionName": "ortopedi_hasta_verileri",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "hasta_id": {
+          "type": "string",
+          "description": "Benzersiz hasta tanımlayıcı"
+        },
+        "demografik_bilgiler": {
+          "type": "object",
+          "properties": {
+            "ad_soyad": {"type": "string"},
+            "yas": {"type": "integer"},
+            "cinsiyet": {"type": "string", "enum": ["Erkek", "Kadın"]},
+            "meslek": {"type": "string"},
+            "spor_aktivitesi": {"type": "string"},
+            "aktivite_seviyesi": {"type": "string", "enum": ["Sedanter", "Rekreasyonel", "Yarışmacı", "Profesyonel"]}
+          }
+        },
+        "tibbi_gecmis": {
+          "type": "object",
+          "properties": {
+            "onceki_yaralanmalar": {"type": "array", "items": {"type": "string"}},
+            "gecmis_ameliyatlar": {"type": "array", "items": {"type": "string"}},
+            "kronik_hastaliklar": {"type": "array", "items": {"type": "string"}},
+            "kullandigi_ilaclar": {"type": "array", "items": {"type": "string"}},
+            "alerjiler": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "mevcut_yaralanma": {
+          "type": "object",
+          "properties": {
+            "tani": {"type": "string"},
+            "anatomik_bolge": {"type": "string"},
+            "yaralanma_mekanizmasi": {"type": "string"},
+            "yaralanma_tarihi": {"type": "string", "format": "date"},
+            "siddet": {"type": "string", "enum": ["Hafif", "Orta", "Şiddetli"]},
+            "agri_skoru": {"type": "integer", "minimum": 0, "maximum": 10}
+          }
+        },
+        "fizik_muayene": {
+          "type": "object",
+          "properties": {
+            "inspeksiyon": {"type": "string"},
+            "palpasyon": {"type": "string"},
+            "hareket_acikligi": {"type": "object"},
+            "kas_kuvveti": {"type": "object"},
+            "ozel_testler": {"type": "object"},
+            "norovaskuler_muayene": {"type": "string"}
+          }
+        },
+        "goruntuleme": {
+          "type": "object",
+          "properties": {
+            "xray_sonuclari": {"type": "string"},
+            "mri_sonuclari": {"type": "string"},
+            "ct_sonuclari": {"type": "string"},
+            "ultrason_sonuclari": {"type": "string"},
+            "elektromiyografi": {"type": "string"}
+          }
+        },
+        "tedavi_plani": {
+          "type": "object",
+          "properties": {
+            "tedavi_yaklaşimi": {"type": "string", "enum": ["Konservatif", "Cerrahi", "Hibrit"]},
+            "cerrahi_detaylar": {"type": "object"},
+            "ilac_tedavisi": {"type": "array", "items": {"type": "string"}},
+            "fizyoterapi_programi": {"type": "object"},
+            "egzersiz_protokolu": {"type": "array", "items": {"type": "string"}},
+            "kısıtlamalar": {"type": "array", "items": {"type": "string"}},
+            "hedefler": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "takip_kayitlari": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tarih": {"type": "string", "format": "date"},
+              "subjektif_bulgular": {"type": "string"},
+              "objektif_bulgular": {"type": "string"},
+              "degerlendirme": {"type": "string"},
+              "plan": {"type": "string"},
+              "fonksiyonel_skorlar": {"type": "object"},
+              "sonraki_randevu": {"type": "string", "format": "date"}
+            }
+          }
+        },
+        "rehabilitasyon": {
+          "type": "object",
+          "properties": {
+            "mevcut_faz": {"type": "string"},
+            "hedefler": {"type": "array", "items": {"type": "string"}},
+            "egzersiz_programi": {"type": "array", "items": {"type": "object"}},
+            "modaliteler": {"type": "array", "items": {"type": "string"}},
+            "ev_egzersizleri": {"type": "array", "items": {"type": "string"}},
+            "ilerleme_kriterleri": {"type": "object"}
+          }
+        }
+      },
+      "required": ["hasta_id", "demografik_bilgiler", "mevcut_yaralanma"]
+    }
+  },
+  "tools": [
+    {
+      "toolId": "medline_ortopedi",
+      "name": "Ortopedi Literatür Taraması",
+      "type": "API",
+      "description": "PubMed/Medline'da ortopedik cerrahi ve spor hekimliği konularında güncel literatür taraması yapar. Yüksek etki faktörlü dergileri önceliklendirir.",
+      "config": {
+        "endpoint": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/",
+        "filters": "journal:J Bone Joint Surg Am[Journal] OR journal:Am J Sports Med[Journal] OR journal:Arthroscopy[Journal] OR journal:Spine[Journal]",
+        "sort": "relevance",
+        "max_results": 100
+      }
+    },
+    {
+      "toolId": "ortopedi_veritabani",
+      "name": "Ortopedi Hasta Veritabanı",
+      "type": "DATABASE",
+      "description": "Hasta kayıtlarını yönetir, tedavi geçmişini takip eder ve fonksiyonel sonuçları değerlendirir. HIPAA uyumlu güvenli veri saklama sağlar.",
+      "config": {
+        "encryption": "AES-256",
+        "backup_frequency": "daily",
+        "retention_period": "10_years"
+      }
+    },
+    {
+      "toolId": "egzersiz_kutuphanesi",
+      "name": "Rehabilitasyon Egzersiz Kütüphanesi",
+      "type": "API",
+      "description": "Spor yaralanmaları ve omurga problemleri için özel egzersiz programları içeren kapsamlı kütüphane. Video demonstrasyonları ve progressions içerir.",
+      "config": {
+        "categories": ["spor_yaralanmalari", "omurga_rehabilitasyon", "kuvvet_antrenmanı", "propriosepsiyon"],
+        "difficulty_levels": ["beginner", "intermediate", "advanced"],
+        "equipment_types": ["clinic", "home", "gym"]
+      }
+    },
+    {
+      "toolId": "goruntuleme_analizi",
+      "name": "Tıbbi Görüntü Analizi",
+      "type": "API",
+      "description": "X-ray, MRI, CT görüntülerini analiz eder ve raporlar. AI destekli anomali tespiti ve ölçüm araçları sağlar.",
+      "config": {
+        "supported_formats": ["DICOM", "JPG", "PNG"],
+        "analysis_types": ["fracture_detection", "joint_space_analysis", "alignment_measurement"],
+        "reporting_formats": ["structured", "narrative"]
+      }
+    },
+    {
+      "toolId": "fonksiyonel_testler",
+      "name": "Fonksiyonel Değerlendirme Testleri",
+      "type": "API",
+      "description": "IKDC, Lysholm, OSI, SF-36 gibi fonksiyonel skorlama sistemlerini hesaplar ve takip eder. Normatif veri karşılaştırması yapar.",
+      "config": {
+        "scoring_systems": ["IKDC", "Lysholm", "OSI", "SF-36", "VAS", "Tegner"],
+        "comparison_groups": ["age_matched", "sport_specific", "injury_type"],
+        "trend_analysis": true
+      }
+    },
+    {
+      "toolId": "cerrahi_planlama",
+      "name": "Cerrahi Planlama Sistemi",
+      "type": "API",
+      "description": "3D anatomik modeller üzerinde cerrahi planlama yapar. İmplant seçimi ve yerleşimi için optimizasyon sağlar.",
+      "config": {
+        "planning_types": ["joint_replacement", "spine_fusion", "arthroscopic_repair"],
+        "implant_databases": ["knee_implants", "spine_hardware", "shoulder_implants"],
+        "simulation_accuracy": "sub_millimeter"
+      }
+    },
+    {
+      "toolId": "telegram_hasta_takip",
+      "name": "Telegram Hasta Takip Sistemi",
+      "type": "TELEGRAM",
+      "description": "Hastalara Telegram üzerinden ameliyat öncesi/sonrası talimatlar, rehabilitasyon programları, randevu hatırlatmaları ve kişiselleştirilmiş tedavi planları göndermek için kullanılır",
+      "config": {
+        "method": "sendMessage",
+        "parse_mode": "Markdown"
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "workflowId": "yeni_hasta_degerlendirme",
+      "description": "Yeni hasta için kapsamlı değerlendirme ve tedavi planı oluşturma",
+      "trigger": "yeni_hasta",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "llm_prompt",
+          "prompt": "Hastanın anamnez ve demografik bilgilerini al. Yaralanma mekanizmasını detaylı öğren.",
+          "output_variable": "anamnez_bilgileri"
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Sistematik fizik muayene yap. Özel testleri uygula ve sonuçları kaydet.",
+          "output_variable": "fizik_muayene_sonuclari"
+        },
+        {
+          "nodeId": "3",
+          "type": "llm_prompt",
+          "prompt": "Görüntüleme yöntemlerini değerlendir ve tanı koy. Ayırıcı tanı listesi hazırla.",
+          "output_variable": "tani_degerlendirme"
+        },
+        {
+          "nodeId": "4",
+          "type": "llm_prompt",
+          "prompt": "Kanıta dayalı tedavi protokolü oluştur. Cerrahi/konservatif seçenekleri değerlendir.",
+          "output_variable": "tedavi_plani"
+        },
+        {
+          "nodeId": "5",
+          "type": "llm_prompt",
+          "prompt": "Kişiselleştirilmiş rehabilitasyon programı hazırla. Faz-bazlı egzersiz protokolü oluştur.",
+          "output_variable": "rehabilitasyon_programi"
+        }
+      ]
+    },
+    {
+      "workflowId": "takip_muayene",
+      "description": "Hasta takip muayenesi ve tedavi planı güncelleme",
+      "trigger": "takip_randevu",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "llm_prompt",
+          "prompt": "Subjektif bulgularını değerlendir. Ağrı, fonksiyon ve yaşam kalitesi değişimlerini kaydet.",
+          "output_variable": "subjektif_degerlendirme"
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Objektif muayene yap. Fonksiyonel testleri uygula ve önceki sonuçlarla karşılaştır.",
+          "output_variable": "objektif_degerlendirme"
+        },
+        {
+          "nodeId": "3",
+          "type": "llm_prompt",
+          "prompt": "İlerleme değerlendir ve tedavi planını güncelle. Sonraki adımları belirle.",
+          "output_variable": "plan_guncelleme"
+        }
+      ]
+    },
+    {
+      "workflowId": "cerrahi_planlama_workflow",
+      "description": "Cerrahi hastalar için detaylı planlama ve hazırlık",
+      "trigger": "cerrahi_karar",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "llm_prompt",
+          "prompt": "Cerrahi endikasyonu ve kontraendikasyonları değerlendir. Risk faktörlerini belirle.",
+          "output_variable": "cerrahi_endikasyon"
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Cerrahi teknik seçimi yap. İmplant ve greftleri belirle.",
+          "output_variable": "cerrahi_teknik"
+        },
+        {
+          "nodeId": "3",
+          "type": "llm_prompt",
+          "prompt": "Postoperatif protokol hazırla. Erken mobilizasyon ve rehabilitasyon planı oluştur.",
+          "output_variable": "postop_protokol"
+        }
+      ]
+    },
+    {
+      "workflowId": "rehabilitasyon_takip",
+      "description": "Rehabilitasyon sürecinin takibi ve program güncelleme",
+      "trigger": "fizyoterapi_raporu",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "llm_prompt",
+          "prompt": "Rehabilitasyon ilerlemesini değerlendir. Fonksiyonel milestone'ları kontrol et.",
+          "output_variable": "rehabilitasyon_ilerleme"
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Egzersiz programını güncelle. Yeni hedefler ve progressions belirle.",
+          "output_variable": "program_guncelleme"
+        },
+        {
+          "nodeId": "3",
+          "type": "llm_prompt",
+          "prompt": "Spora dönüş kriterleri değerlendir. Return-to-play protokolü hazırla.",
+          "output_variable": "spora_donus_plani"
+        }
+      ]
+    }
+  ],
+  "schedules": [
+    {
+      "scheduleId": "gunluk_hasta_takip",
+      "name": "Günlük Hasta Takip Sistemi",
+      "description": "Hastalardan gelen bildirimler, randevu hatırlatmaları ve acil durumları takip eder",
+      "cron": "0 8 * * *",
+      "workflowId": "takip_muayene",
+      "enabled": true
+    },
+    {
+      "scheduleId": "rehabilitasyon_raporu",
+      "name": "Haftalık Rehabilitasyon Raporu",
+      "description": "Fizyoterapistlerden gelen rehabilitasyon raporlarını analiz eder",
+      "cron": "0 9 * * 1",
+      "workflowId": "rehabilitasyon_takip",
+      "enabled": true
+    },
+    {
+      "scheduleId": "literatur_guncelleme",
+      "name": "Aylık Literatür Güncellemesi",
+      "description": "Ortopedi ve spor hekimliği alanındaki en güncel yayınları tarar",
+      "cron": "0 9 1 * *",
+      "workflowId": "yeni_hasta_degerlendirme",
+      "enabled": true
+    }
+  ]
+} 

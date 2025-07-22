@@ -1,16 +1,19 @@
 from fastapi import FastAPI, Body, HTTPException, status, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.encoders import jsonable_encoder
-from typing import List, Optional
+from typing import List, Optional, AsyncGenerator
 from datetime import timedelta
 import logging
 import os
+import json
+import asyncio
 
 from .db import agent_collection, close_db_client
 from .models import AgentModel, UpdateAgentModel, User, Token
 from .agent_loader import load_agent_config, AgentNotFoundException
+from .file_agent_manager import file_agent_manager
 from .data_handler import get_user_data_collection
 from .tool_executor import execute_tool, ToolExecutionError
 from .workflow_engine import WorkflowExecutor, WorkflowExecutionError
@@ -21,6 +24,9 @@ from .smart_master_agent import process_smart_conversation, create_agent_from_sm
 from .session_manager import session_manager
 from .auth import ACCESS_TOKEN_EXPIRE_MINUTES, create_access_token, get_current_active_user, verify_password
 from .users import create_user as create_db_user, get_user
+from .telegram_auth_manager import telegram_auth_manager
+from .telegram_webhook import telegram_webhook_handler
+from .telegram_polling_service import telegram_polling_service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -40,22 +46,47 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 async def serve_main_page():
     return FileResponse("app/static/index.html")
 
+# Serve the chat page
+@app.get("/chat/{agent_id}")
+async def serve_chat_page(agent_id: str):
+    return FileResponse("app/static/chat.html")
+
 @app.on_event("startup")
 async def startup_event():
     logger.info("Starting up AI Agent Platform...")
+    
+    # Debug: Check if TELEGRAM_BOT_TOKEN is loaded
+    telegram_token = os.getenv('TELEGRAM_BOT_TOKEN')
+    if telegram_token:
+        logger.info(f"✅ TELEGRAM_BOT_TOKEN loaded successfully (length: {len(telegram_token)})")
+    else:
+        logger.warning("❌ TELEGRAM_BOT_TOKEN not found in environment variables")
+    
     await session_manager.initialize()
     try:
-        agents_cursor = agent_collection.find()
-        async for agent_data in agents_cursor:
+        # Load agents from file system
+        agents = file_agent_manager.list_agents()
+        for agent in agents:
             try:
-                agent = AgentModel(**agent_data)
                 schedule_workflow_for_agent(agent)
             except Exception as e:
-                logger.error(f"Error loading agent {agent_data.get('agentId', 'unknown')}: {str(e)}")
+                logger.error(f"Error loading agent {agent.agentId}: {str(e)}")
         
         if not scheduler.running:
             scheduler.start()
             logger.info("Scheduler started successfully")
+        
+        # Start Telegram polling service
+        if telegram_polling_service.enabled:
+            asyncio.create_task(telegram_polling_service.start_polling())
+            logger.info("🤖 Telegram polling service started")
+        else:
+            logger.warning("⚠️ Telegram polling service disabled (no bot token)")
+            
+        # Log agent stats
+        stats = file_agent_manager.get_agent_stats()
+        logger.info(f"Loaded {stats['total_agents']} agents from {stats['agents_directory']}")
+        
     except Exception as e:
         logger.error(f"Error during startup: {str(e)}")
 
@@ -63,10 +94,18 @@ async def startup_event():
 async def shutdown_event():
     logger.info("Shutting down AI Agent Platform...")
     try:
+        # Stop Telegram polling service
+        if telegram_polling_service.polling:
+            await telegram_polling_service.stop_polling()
+            logger.info("🤖 Telegram polling service stopped")
+        
         if scheduler.running:
             scheduler.shutdown()
-        close_db_client()
-        logger.info("Shutdown completed successfully")
+            logger.info("Scheduler stopped successfully")
+        
+        await session_manager.cleanup()
+        await close_db_client()
+        logger.info("Database connections closed")
     except Exception as e:
         logger.error(f"Error during shutdown: {str(e)}")
 
@@ -135,16 +174,15 @@ async def health_check():
 async def create_agent(agent: AgentModel = Body(...), current_user: User = Depends(get_current_active_user)):
     try:
         agent.owner = current_user.username
-        agent_data = agent.model_dump(by_alias=True)
-        new_agent = await agent_collection.insert_one(agent_data)
-        created_agent_doc = await agent_collection.find_one({"_id": new_agent.inserted_id})
         
-        if created_agent_doc:
-            created_agent_model = AgentModel(**created_agent_doc)
-            schedule_workflow_for_agent(created_agent_model)
+        # Save to file system
+        if file_agent_manager.save_agent(agent):
+            schedule_workflow_for_agent(agent)
             logger.info(f"Agent {agent.agentId} created successfully by {current_user.username}")
-
-        return JSONResponse(status_code=status.HTTP_201_CREATED, content=jsonable_encoder(created_agent_doc))
+            return JSONResponse(status_code=status.HTTP_201_CREATED, content=jsonable_encoder(agent.model_dump(by_alias=True)))
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save agent to file")
+            
     except Exception as e:
         logger.error(f"Error creating agent: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to create agent")
@@ -152,7 +190,11 @@ async def create_agent(agent: AgentModel = Body(...), current_user: User = Depen
 @app.get("/agents/", response_description="List all agents for the current user", response_model=List[AgentModel])
 async def list_agents(current_user: User = Depends(get_current_active_user)):
     try:
-        agents = await agent_collection.find({"owner": current_user.username}).to_list(1000)
+        logger.info(f"Listing agents for user: {current_user.username}")
+        agents = file_agent_manager.list_agents(owner=current_user.username)
+        logger.info(f"Found {len(agents)} agents for user {current_user.username}")
+        for agent in agents:
+            logger.info(f"  - Agent: {agent.agentId}, Name: {agent.agentName}, Owner: {agent.owner}")
         return agents
     except Exception as e:
         logger.error(f"Error listing agents: {str(e)}")
@@ -161,33 +203,39 @@ async def list_agents(current_user: User = Depends(get_current_active_user)):
 @app.get("/agents/{id}", response_description="Get a single agent", response_model=AgentModel)
 async def show_agent(id: str, current_user: User = Depends(get_current_active_user)):
     try:
-        query = {"agentId": id, "owner": current_user.username}
-        if (agent := await agent_collection.find_one(query)) is not None:
+        agent = file_agent_manager.get_agent(id, current_user.username)
+        if agent:
             return agent
-        raise HTTPException(status_code=404, detail=f"Agent {id} not found or you don't have permission to access it.")
-    except HTTPException:
-        raise
+        else:
+            raise HTTPException(status_code=404, detail=f"Agent {id} not found or you don't have access.")
     except Exception as e:
         logger.error(f"Error retrieving agent {id}: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to retrieve agent")
 
 @app.put("/agents/{id}", response_description="Update an agent", response_model=AgentModel)
-async def update_agent(id: str, agent: UpdateAgentModel = Body(...), current_user: User = Depends(get_current_active_user)):
+async def update_agent(id: str, agent_update: UpdateAgentModel = Body(...), current_user: User = Depends(get_current_active_user)):
     try:
-        agent_data = agent.model_dump(by_alias=True, exclude_unset=True)
-        query = {"agentId": id, "owner": current_user.username}
-
-        if len(agent_data) >= 1:
-            update_result = await agent_collection.update_one(query, {"$set": agent_data})
+        # Get existing agent
+        existing_agent = file_agent_manager.get_agent(id, current_user.username)
+        if not existing_agent:
+            raise HTTPException(status_code=404, detail=f"Agent {id} not found or you don't have access.")
+        
+        # Update agent with new data
+        update_data = agent_update.model_dump(exclude_unset=True)
+        updated_agent_data = existing_agent.model_dump()
+        updated_agent_data.update(update_data)
+        
+        # Create updated agent model
+        updated_agent = AgentModel(**updated_agent_data)
+        
+        # Save updated agent
+        if file_agent_manager.save_agent(updated_agent):
+            schedule_workflow_for_agent(updated_agent)
+            logger.info(f"Agent {id} updated successfully by {current_user.username}")
+            return updated_agent
+        else:
+            raise HTTPException(status_code=500, detail="Failed to save updated agent")
             
-            if update_result.matched_count == 1:
-                if (updated_agent_doc := await agent_collection.find_one(query)) is not None:
-                    updated_agent_model = AgentModel(**updated_agent_doc)
-                    schedule_workflow_for_agent(updated_agent_model)
-                    logger.info(f"Agent {id} updated successfully by {current_user.username}")
-                    return updated_agent_doc
-
-        raise HTTPException(status_code=404, detail=f"Agent {id} not found or you don't have permission to update it.")
     except HTTPException:
         raise
     except Exception as e:
@@ -197,12 +245,130 @@ async def update_agent(id: str, agent: UpdateAgentModel = Body(...), current_use
 @app.delete("/agents/{id}", response_description="Delete an agent")
 async def delete_agent(id: str, current_user: User = Depends(get_current_active_user)):
     try:
-        query = {"agentId": id, "owner": current_user.username}
-        agent_to_delete = await agent_collection.find_one(query)
-        if not agent_to_delete:
-            raise HTTPException(status_code=404, detail=f"Agent {id} not found or you don't have permission to delete it.")
+        # Get agent to verify ownership
+        agent = file_agent_manager.get_agent(id, current_user.username)
+        if not agent:
+            raise HTTPException(status_code=404, detail=f"Agent {id} not found or you don't have access.")
 
-        agent_model = AgentModel(**agent_to_delete)
+        # Delete agent file
+        if file_agent_manager.delete_agent(id, current_user.username):
+            logger.info(f"Agent {id} deleted successfully by {current_user.username}")
+            return {"message": f"Agent {id} deleted successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete agent")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting agent {id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to delete agent")
+
+# --- Agent Sharing Endpoints ---
+@app.post("/agents/{id}/share")
+async def share_agent(id: str, current_user: User = Depends(get_current_active_user)):
+    """Make agent public for sharing"""
+    try:
+        logger.info(f"Attempting to share agent {id} by user {current_user.username}")
+        
+        # Get the agent
+        agent = file_agent_manager.get_agent(id, current_user.username)
+        if not agent:
+            logger.warning(f"Agent {id} not found or access denied for user {current_user.username}")
+            raise HTTPException(status_code=404, detail=f"Agent {id} not found or you don't have access.")
+        
+        logger.info(f"Agent {id} found, current public status: {getattr(agent, 'public', False)}")
+        
+        # Add public flag to agent
+        try:
+            # Use the existing agent and just update the public flag
+            agent.public = True
+            logger.info(f"Set public flag to True for agent {id}")
+            
+            # Validate the updated agent
+            updated_agent = agent
+            logger.info(f"Agent ready for sharing")
+            
+        except Exception as model_error:
+            logger.error(f"Error updating agent model: {str(model_error)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to update agent model: {str(model_error)}")
+        
+        # Save the updated agent
+        try:
+            save_result = file_agent_manager.save_agent(updated_agent)
+            logger.info(f"Save result: {save_result}")
+            
+            if save_result:
+                logger.info(f"Agent {id} shared publicly by {current_user.username}")
+                return {"message": f"Agent {id} is now public", "share_url": f"/agents/public/{id}"}
+            else:
+                logger.error(f"Failed to save shared agent {id}")
+                raise HTTPException(status_code=500, detail="Failed to save shared agent")
+                
+        except Exception as save_error:
+            logger.error(f"Error saving shared agent {id}: {str(save_error)}", exc_info=True)
+            raise HTTPException(status_code=500, detail=f"Failed to save agent: {str(save_error)}")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error sharing agent {id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+@app.get("/agents/public", response_description="List all public agents")
+async def list_public_agents():
+    """List all publicly shared agents"""
+    try:
+        all_agents = file_agent_manager.list_agents()  # Get all agents
+        public_agents = [agent for agent in all_agents if getattr(agent, 'public', False)]
+        
+        # Remove sensitive info for public listing
+        public_agent_info = []
+        for agent in public_agents:
+            public_info = {
+                "agentId": agent.agentId,
+                "agentName": agent.agentName,
+                "version": agent.version,
+                "systemPrompt": agent.systemPrompt[:200] + "..." if len(agent.systemPrompt) > 200 else agent.systemPrompt,
+                "owner": agent.owner,
+                "tools": [{"name": tool.name, "type": tool.type, "description": tool.description} for tool in agent.tools]
+            }
+            public_agent_info.append(public_info)
+        
+        return public_agent_info
+        
+    except Exception as e:
+        logger.error(f"Error listing public agents: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to list public agents")
+
+@app.post("/agents/public/{id}/copy")
+async def copy_public_agent(id: str, current_user: User = Depends(get_current_active_user)):
+    """Copy a public agent to user's collection"""
+    try:
+        # Get the public agent (without owner restriction)
+        agent = file_agent_manager.get_agent(id)
+        if not agent or not getattr(agent, 'public', False):
+            raise HTTPException(status_code=404, detail=f"Public agent {id} not found.")
+        
+        # Create a copy with new ID and current user as owner
+        agent_data = agent.model_dump()
+        agent_data["agentId"] = f"{id}_copy_{current_user.username}"
+        agent_data["agentName"] = f"{agent.agentName} (Copy)"
+        agent_data["owner"] = current_user.username
+        agent_data["public"] = False  # Copies are private by default
+        
+        copied_agent = AgentModel(**agent_data)
+        
+        if file_agent_manager.save_agent(copied_agent):
+            logger.info(f"Public agent {id} copied by {current_user.username}")
+            return {"message": "Agent copied successfully", "new_agent_id": copied_agent.agentId}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to copy agent")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error copying public agent {id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to copy agent")
         
         delete_result = await agent_collection.delete_one(query)
 
@@ -307,21 +473,91 @@ async def chat_with_agent(agent_id: str, message: dict = Body(...), current_user
         if history_context:
             enhanced_system_prompt = f"{agent_config.systemPrompt}\n\nPrevious conversation:\n{history_context}"
         
+        # Add tool information to system prompt
+        tools_info = ""
+        if agent_config.tools:
+            tools_info = "\n\n🔧 **Available Tools:**\n"
+            for tool in agent_config.tools:
+                tools_info += f"- **{tool.toolId}** ({tool.type}): {tool.description}\n"
+            tools_info += "\n**To use a tool, include in your response:** `[TOOL_CALL: tool_id, {param1: value1, param2: value2}]`\n"
+        
+        enhanced_system_prompt_with_tools = enhanced_system_prompt + tools_info
+        
         llm_response = await get_llm_response(
             llm_config=agent_config.llmConfig,
-            system_prompt=enhanced_system_prompt,
+            system_prompt=enhanced_system_prompt_with_tools,
             user_message=user_message
         )
         
-        await session_manager.add_to_history(session_id, user_message, llm_response)
+        # Check for tool calls in the response
+        final_response = llm_response
+        tool_results = []
+        
+        import re
+        tool_call_pattern = r'\[TOOL_CALL:\s*([^,]+),\s*({[^}]*})\]'
+        tool_calls = re.findall(tool_call_pattern, llm_response)
+        
+        for tool_id, params_str in tool_calls:
+            tool_id = tool_id.strip()
+            try:
+                # Find the tool in agent config
+                tool_config = None
+                for tool in agent_config.tools:
+                    if tool.toolId == tool_id:
+                        tool_config = tool
+                        break
+                
+                if tool_config:
+                    # Parse parameters
+                    import json
+                    try:
+                        params = json.loads(params_str)
+                    except:
+                        params = {}
+                    
+                    # Add user context for Telegram tools
+                    if tool_config.type == "TELEGRAM":
+                        if "chat_id" not in params:
+                            params["chat_id"] = current_user.username
+                    
+                    logger.info(f"🔧 Executing tool {tool_id} with params: {params}")
+                    
+                    # Execute the tool
+                    tool_result = await execute_tool(tool_config, params)
+                    tool_results.append({
+                        "tool_id": tool_id,
+                        "result": tool_result
+                    })
+                    
+                    logger.info(f"✅ Tool {tool_id} executed successfully: {tool_result}")
+                    
+                    # Remove the tool call from the response
+                    final_response = final_response.replace(f"[TOOL_CALL: {tool_id}, {params_str}]", "")
+                    
+                else:
+                    logger.warning(f"⚠️ Tool {tool_id} not found in agent configuration")
+                    
+            except Exception as e:
+                logger.error(f"❌ Error executing tool {tool_id}: {str(e)}")
+                tool_results.append({
+                    "tool_id": tool_id,
+                    "error": str(e)
+                })
+        
+        await session_manager.add_to_history(session_id, user_message, final_response)
         await session_manager.update_session_context(session_id, {})
         
-        return {
+        response_data = {
             "agent_system_prompt": agent_config.systemPrompt,
             "user_message": user_message,
-            "response": llm_response,
+            "response": final_response,
             "session_id": session_id
         }
+        
+        if tool_results:
+            response_data["tool_results"] = tool_results
+            
+        return response_data
     except AgentNotFoundException:
         raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
     except HTTPException:
@@ -330,37 +566,60 @@ async def chat_with_agent(agent_id: str, message: dict = Body(...), current_user
         logger.error(f"Chat error: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
+# --- Debug Endpoints ---
+@app.get("/debug/test")
+async def debug_test():
+    """Debug endpoint to test basic functionality"""
+    try:
+        return {"status": "ok", "message": "Debug endpoint working", "timestamp": "2025-07-18"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 # --- Chat History Endpoints ---
 @app.get("/chat/history/{agent_id}")
 async def get_chat_history(agent_id: str, session_id: Optional[str] = None, limit: int = 10, current_user: User = Depends(get_current_active_user)):
     """Get chat history for a specific session or agent"""
     try:
-        # Verify agent exists and user has access
-        agent = await agent_collection.find_one({"agentId": agent_id, "owner": current_user.username})
-        if not agent:
-            raise HTTPException(status_code=404, detail="Agent not found or you don't have access.")
-
-        target_session_id = session_id
+        logger.info(f"Chat history request: agent={agent_id}, user={current_user.username}, session={session_id}, limit={limit}")
         
-        if target_session_id:
-            # Validate provided session_id
-            session = await session_manager.get_session_by_id(target_session_id)
-            if not session or session.get('user_id') != current_user.username:
-                raise HTTPException(status_code=403, detail="You do not have permission to access this chat history.")
+        # Verify agent exists and user has access
+        agent_config = await load_agent_config(agent_id)
+        if agent_config.owner != current_user.username:
+            logger.warning(f"Access denied: user {current_user.username} tried to access agent {agent_id} owned by {agent_config.owner}")
+            raise HTTPException(status_code=403, detail="You do not have permission to access this agent's history.")
+        
+        user_id = current_user.username
+        logger.info(f"Agent access verified for user {user_id}")
+        
+        if session_id:
+            # Get history for specific session
+            logger.info(f"Getting history for specific session: {session_id}")
+            history = await session_manager.get_session_history(session_id, limit)
         else:
-            # Find latest session for user and agent
-            latest_session = await session_manager.find_latest_session(current_user.username, agent_id)
-            if not latest_session:
-                return []
-            target_session_id = latest_session["session_id"]
-
-        history = await session_manager.get_session_history(target_session_id, limit)
+            # Get history from the latest session for this user and agent
+            logger.info(f"Finding latest session for user={user_id}, agent={agent_id}")
+            latest_session = await session_manager.find_latest_session(user_id, agent_id)
+            if latest_session:
+                logger.info(f"Found latest session: {latest_session.get('session_id')}")
+                history = await session_manager.get_session_history(latest_session["session_id"], limit)
+            else:
+                logger.info("No sessions found for user and agent")
+                history = []
+        
+        logger.info(f"Returning {len(history)} history entries")
         return history
+        
+    except AgentNotFoundException:
+        logger.error(f"Agent {agent_id} not found")
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error retrieving chat history for agent {agent_id}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to retrieve chat history")
+        logger.error(f"Unexpected error getting chat history: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        # Return empty array on error to prevent 500 errors
+        return []
 
 # --- Tool Execution Endpoints ---
 @app.post("/tools/{agent_id}/execute/{tool_id}")
@@ -479,21 +738,18 @@ async def master_agent_conversation(message: dict = Body(...), current_user: Use
             try:
                 agent_model = create_agent_from_smart_conversation(state, current_user.username)
                 
-                # Save the agent to the database
-                agent_data = agent_model.model_dump(by_alias=True)
-                new_agent = await agent_collection.insert_one(agent_data)
-                created_agent_doc = await agent_collection.find_one({"_id": new_agent.inserted_id})
-                
-                if created_agent_doc:
-                    created_agent_model = AgentModel(**created_agent_doc)
-                    schedule_workflow_for_agent(created_agent_model)
+                # Save the agent to file system
+                if file_agent_manager.save_agent(agent_model):
+                    schedule_workflow_for_agent(agent_model)
                     logger.info(f"Agent {agent_model.agentId} created successfully by {current_user.username}")
                     
                     # Add success message to conversation
                     state.messages.append({
                         "role": "assistant", 
-                        "content": f"Harika! '{agent_model.agentName}' adlı agent başarıyla oluşturuldu ve veritabanına kaydedildi. Artık bu agent ile sohbet edebilir ve özelleştirebilirsiniz."
+                        "content": f"Harika! '{agent_model.agentName}' adlı agent başarıyla oluşturuldu ve dosya sistemine kaydedildi. Artık bu agent ile sohbet edebilir ve özelleştirebilirsiniz."
                     })
+                else:
+                    raise Exception("Agent dosya sistemine kaydedilemedi")
                     
             except Exception as e:
                 logger.error(f"Error creating agent from smart conversation: {str(e)}")
@@ -511,6 +767,64 @@ async def master_agent_conversation(message: dict = Body(...), current_user: Use
     except Exception as e:
         logger.error(f"Error in smart master agent conversation: {str(e)}")
         raise HTTPException(status_code=500, detail="Failed to process conversation")
+
+@app.post("/master-agent/stream")
+async def master_agent_stream(message: dict = Body(...), current_user: User = Depends(get_current_active_user)):
+    """Stream conversation with the Smart Master Agent using Server-Sent Events"""
+    
+    async def generate_stream():
+        try:
+            user_message = message.get("message", "")
+            conversation_id = message.get("conversation_id", "")
+            
+            # Send initial status
+            yield f"data: {json.dumps({'type': 'status', 'message': 'Master Agent düşünüyor...', 'status': 'thinking'})}\n\n"
+            
+            # Process the conversation using the Smart Master Agent
+            state = await process_smart_conversation(conversation_id, user_message)
+            
+            # Send the conversation state
+            yield f"data: {json.dumps({'type': 'conversation', 'data': {'conversation_id': state.conversation_id, 'messages': state.messages, 'current_step': state.current_phase, 'completed': state.completed}})}\n\n"
+            
+            # If the agent creation is completed, create the actual agent
+            if state.completed:
+                yield f"data: {json.dumps({'type': 'status', 'message': 'Agent oluşturuluyor...', 'status': 'creating'})}\n\n"
+                
+                try:
+                    agent_model = create_agent_from_smart_conversation(state, current_user.username)
+                    
+                    # Save the agent to file system
+                    if file_agent_manager.save_agent(agent_model):
+                        schedule_workflow_for_agent(agent_model)
+                        logger.info(f"Agent {agent_model.agentId} created successfully by {current_user.username}")
+                        
+                        # Send success message
+                        yield f"data: {json.dumps({'type': 'success', 'message': f'Harika! {agent_model.agentName} adlı agent başarıyla oluşturuldu ve dosya sistemine kaydedildi.', 'agent_id': agent_model.agentId})}\n\n"
+                    else:
+                        raise Exception("Agent dosya sistemine kaydedilemedi")
+                        
+                except Exception as e:
+                    logger.error(f"Error creating agent from smart conversation: {str(e)}")
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'Üzgünüm, agent oluşturulurken bir hata oluştu: {str(e)}'})}\n\n"
+            
+            # Send completion signal
+            yield f"data: {json.dumps({'type': 'complete'})}\n\n"
+            
+        except Exception as e:
+            logger.error(f"Error in streaming master agent conversation: {str(e)}")
+            yield f"data: {json.dumps({'type': 'error', 'message': f'Bir hata oluştu: {str(e)}'})}\n\n"
+    
+    return StreamingResponse(
+        generate_stream(),
+        media_type="text/plain",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Type": "text/event-stream",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
 
 # --- Workflow Execution Endpoints ---
 @app.post("/workflows/{agent_id}/execute/{workflow_id}")
@@ -538,3 +852,102 @@ async def execute_agent_workflow(agent_id: str, workflow_id: str, initial_contex
     except Exception as e:
         logger.error(f"Unexpected error in workflow execution: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+# --- Telegram Integration Endpoints ---
+@app.post("/telegram/auth/request")
+async def request_telegram_auth(current_user: User = Depends(get_current_active_user)):
+    """Request Telegram authentication code for current user"""
+    try:
+        auth_code = await telegram_auth_manager.create_auth_request(current_user.username)
+        
+        # Create Telegram bot link with deep linking
+        bot_username = "Dytaibot"  # Your actual bot username
+        telegram_link = f"https://t.me/{bot_username}?start={auth_code}"
+        
+        return {
+            "auth_code": auth_code,
+            "telegram_link": telegram_link,
+            "instructions": {
+                "tr": [
+                    f"1. Bu linke tıklayın: {telegram_link}",
+                    f"2. Veya bot'a (@{bot_username}) gidin ve şu kodu gönderin: {auth_code}",
+                    "3. Kod 10 dakika geçerlidir"
+                ],
+                "en": [
+                    f"1. Click this link: {telegram_link}",
+                    f"2. Or go to the bot (@{bot_username}) and send this code: {auth_code}",
+                    "3. Code is valid for 10 minutes"
+                ]
+            },
+            "expires_in_minutes": 10
+        }
+    except Exception as e:
+        logger.error(f"Error creating Telegram auth request: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to create auth request")
+
+@app.get("/telegram/auth/status")
+async def get_telegram_auth_status(current_user: User = Depends(get_current_active_user)):
+    """Get Telegram authentication status for current user"""
+    try:
+        chat_id = await telegram_auth_manager.get_chat_id_for_user(current_user.username)
+        
+        return {
+            "is_connected": chat_id is not None,
+            "chat_id": chat_id if chat_id else None,
+            "user_id": current_user.username
+        }
+    except Exception as e:
+        logger.error(f"Error getting Telegram auth status: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to get auth status")
+
+@app.delete("/telegram/auth/revoke")
+async def revoke_telegram_auth(current_user: User = Depends(get_current_active_user)):
+    """Revoke Telegram authentication for current user"""
+    try:
+        success = await telegram_auth_manager.revoke_telegram_auth(current_user.username)
+        
+        if success:
+            return {"message": "Telegram authentication revoked successfully"}
+        else:
+            return {"message": "No Telegram authentication found to revoke"}
+    except Exception as e:
+        logger.error(f"Error revoking Telegram auth: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to revoke auth")
+
+@app.post("/telegram/webhook")
+async def telegram_webhook(update: dict = Body(...)):
+    """Handle incoming Telegram webhook updates"""
+    try:
+        logger.info(f"Received Telegram webhook update: {update}")
+        
+        # Process the update
+        response = await telegram_webhook_handler.process_update(update)
+        logger.info(f"Webhook handler response: {response}")
+        
+        if response:
+            # Send response back to Telegram
+            import httpx
+            bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+            if bot_token and response.get('method') == 'sendMessage':
+                telegram_payload = {
+                    "chat_id": response["chat_id"],
+                    "text": response["text"],
+                    "parse_mode": response.get("parse_mode", "Markdown")
+                }
+                logger.info(f"Sending message to Telegram: {telegram_payload}")
+                
+                async with httpx.AsyncClient() as client:
+                    telegram_response = await client.post(
+                        f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                        json=telegram_payload
+                    )
+                    logger.info(f"Telegram API response: {telegram_response.status_code} - {telegram_response.text}")
+            else:
+                logger.warning(f"Bot token missing or invalid response method: {response.get('method')}")
+        else:
+            logger.info("No response generated from webhook handler")
+        
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"Error processing Telegram webhook: {str(e)}", exc_info=True)
+        return {"ok": False, "error": str(e)}

@@ -7,9 +7,11 @@ from apscheduler.triggers.cron import CronTrigger
 
 from .agent_loader import load_agent_config, AgentNotFoundException
 from .workflow_engine import WorkflowExecutor, WorkflowExecutionError
+from .session_manager import session_manager
+from .agent_loader import load_agent_config, AgentNotFoundException
+from .telegram_scheduler_helper import telegram_scheduler_helper
 from .models import AgentModel, Schedule
 from .db import agent_collection
-from .session_manager import session_manager
 
 logger = logging.getLogger(__name__)
 
@@ -30,17 +32,25 @@ async def run_scheduled_workflow(agent_id: str, workflow_id: str, schedule_id: s
         # Load agent with full initialization
         agent_config = await load_agent_config(agent_id, initialize=True)
         
+        if not agent_config:
+            raise AgentNotFoundException(f"Agent {agent_id} not found")
+        
         # Create a unique session for this scheduled run
         system_user_id = f"system_scheduler_{schedule_id}"
         session = await session_manager.get_or_create_session(system_user_id, agent_id)
-        session_id = session["session_id"]
+        session_id = session.get("session_id") if session else None
+        
+        if not session_id:
+            raise Exception("Failed to create session for scheduled workflow")
         
         # Set up initial context with schedule information
         initial_context = {
             "scheduled_execution": True,
             "schedule_id": schedule_id,
             "execution_time": datetime.utcnow().isoformat(),
-            "session_id": session_id
+            "session_id": session_id,
+            "agent_id": agent_id,
+            "workflow_id": workflow_id
         }
         
         # Execute the workflow
@@ -48,26 +58,52 @@ async def run_scheduled_workflow(agent_id: str, workflow_id: str, schedule_id: s
         final_context = await executor.run(workflow_id, initial_context)
         
         # Update session with results
-        await session_manager.update_session_context(session_id, final_context)
+        if final_context:
+            await session_manager.update_session_context(session_id, final_context)
         
         # Log completion
         logger.info(f"Successfully executed scheduled workflow '{workflow_id}' for agent '{agent_id}'.")
         
+        # Send Telegram notification if enabled and user has Telegram connected
+        try:
+            if final_context and telegram_scheduler_helper.enabled:
+                # Extract user from agent owner or session
+                agent_owner = agent_config.get('owner')
+                if agent_owner:
+                    # Generate notification based on workflow results
+                    notification_data = {
+                        'agent_name': agent_config.get('agentName', agent_id),
+                        'workflow_id': workflow_id,
+                        'execution_time': datetime.utcnow().strftime('%H:%M'),
+                        'results': final_context.get('output', 'Workflow başarıyla tamamlandı!')
+                    }
+                    
+                    # Send notification
+                    await telegram_scheduler_helper.send_agent_notification(
+                        user_id=agent_owner,
+                        agent_id=agent_id,
+                        notification_type='daily_report',
+                        data=notification_data
+                    )
+                    logger.info(f"Telegram notification sent for agent {agent_id} to user {agent_owner}")
+        except Exception as telegram_error:
+            logger.warning(f"Failed to send Telegram notification: {str(telegram_error)}")
+        
         # Store this execution in the agent's schedule history
         await record_schedule_execution(agent_id, schedule_id, workflow_id, True, None)
         
-    except AgentNotFoundException:
-        error_msg = f"Agent {agent_id} not found for scheduled workflow '{workflow_id}'"
+    except AgentNotFoundException as e:
+        error_msg = f"Agent {agent_id} not found for scheduled workflow '{workflow_id}': {str(e)}"
         logger.error(error_msg)
         await record_schedule_execution(agent_id, schedule_id, workflow_id, False, error_msg)
         
     except WorkflowExecutionError as e:
-        error_msg = f"Error executing workflow '{workflow_id}': {e}"
+        error_msg = f"Error executing workflow '{workflow_id}': {str(e)}"
         logger.error(f"Error for agent '{agent_id}': {error_msg}")
         await record_schedule_execution(agent_id, schedule_id, workflow_id, False, error_msg)
         
     except Exception as e:
-        error_msg = f"Unexpected error: {e}"
+        error_msg = f"Unexpected error: {str(e)}"
         logger.error(f"Agent {agent_id}, workflow {workflow_id}: {error_msg}")
         await record_schedule_execution(agent_id, schedule_id, workflow_id, False, error_msg)
 

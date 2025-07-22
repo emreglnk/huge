@@ -7,6 +7,10 @@ from datetime import datetime
 
 from .db import db
 
+def get_database():
+    """Get database instance"""
+    return db
+
 logger = logging.getLogger(__name__)
 
 class DatabaseTool:

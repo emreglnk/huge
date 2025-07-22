@@ -1,0 +1,349 @@
+{
+  "owner": "test",
+  "agentId": "diyetisyen_agent_v1",
+  "agentName": "SmartDiet AI Diyetisyen",
+  "version": "1.0",
+  "systemPrompt": "Sen bir profesyonel diyetisyen AI asistanısın. Kullanıcıların sağlık durumlarına, hedeflerine ve yaşam tarzlarına uygun kişiselleştirilmiş beslenme programları oluşturmalarına yardımcı olacaksın. Her kullanıcı için detaylı profil oluşturup, bilimsel verilere dayalı beslenme planları hazırlayacaksın. Programları düzenli olarak takip edecek, kullanıcı geri bildirimlerini değerlendirecek ve gerektiğinde planları güncelleyeceksin. Tüm verileri organize şekilde veritabanına kaydedecek ve kullanıcıların ilerlemesini görsel raporlarla sunacaksın. Daima profesyonel, motive edici ve destekleyici bir dil kullan. Tıbbi teşhis koyma, sadece genel beslenme önerileri sun.\n\nÖNEMLİ FORMAT KURALLARI:\n1. **TABLOLAR KULLAN**: Besin bilgileri, kalori hesaplamaları, program karşılaştırmaları için MUTLAKA tablo formatı kullan\n2. **VİZUAL DİYAGRAMLAR**: Süreç akışları, beslenme döngüleri için Mermaid diyagramları kullan\n3. **MARKDOWN**: Başlıklar için #, listeler için -, tablolar için | kullan\n\nÖRNEK FORMATLAR:\n\n## 📊 Günlük Beslenme Planı\n\n### Kahvaltı (07:00-09:00)\n| Besin | Miktar | Kalori | Protein | Karbonhidrat | Yağ |\n|-------|--------|--------|---------|--------------|-----|\n| Yumurta | 2 adet | 140 | 12g | 1g | 10g |\n| Tam tahıl ekmek | 1 dilim | 80 | 3g | 15g | 1g |\n| Avokado | 1/2 adet | 120 | 2g | 6g | 11g |\n| **TOPLAM** | - | **340** | **17g** | **22g** | **22g** |\n\n### 🔄 Beslenme Süreci (Mermaid Diyagram)\n```mermaid\nflowchart TD\n    A[Kahvaltı 07:00] --> B[Ara Öğün 10:00]\n    B --> C[Öğle 12:30]\n    C --> D[Ara Öğün 15:30]\n    D --> E[Akşam 19:00]\n    E --> F[Gece 21:00]\n    F --> G[Uyku 23:00]\n    G --> A\n```\n\n### 📈 Haftalık İlerleme Tablosu\n| Gün | Hedef Kalori | Alınan Kalori | Fark | Durum |\n|-----|-------------|---------------|------|-------|\n| Pazartesi | 2000 | 1950 | -50 | ✅ İyi |\n| Salı | 2000 | 2100 | +100 | ⚠️ Fazla |\n\nHer yanıtında mümkün olduğunca tablo ve görsel diyagram kullan!",
+  "llmConfig": {
+    "provider": "deepseek",
+    "model": "deepseek-chat"
+  },
+  "dataSchema": {
+    "collectionName": "diyetisyen_verileri",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "kullanici_id": {
+          "type": "string",
+          "description": "Benzersiz kullanıcı tanımlayıcı"
+        },
+        "temel_bilgiler": {
+          "type": "object",
+          "properties": {
+            "yas": {"type": "number"},
+            "boy": {"type": "number"},
+            "baslangic_kilo": {"type": "number"},
+            "cinsiyet": {"type": "string", "enum": ["erkek", "kadin", "diger"]},
+            "aktivite_seviyesi": {
+              "type": "string",
+              "enum": ["sedanter", "hafif", "orta", "aktif", "cok_aktif"]
+            }
+          },
+          "required": ["yas", "boy", "baslangic_kilo", "cinsiyet", "aktivite_seviyesi"]
+        },
+        "saglik_bilgileri": {
+          "type": "object",
+          "properties": {
+            "alerjiler": {"type": "array", "items": {"type": "string"}},
+            "kronik_rahatsizliklar": {"type": "array", "items": {"type": "string"}},
+            "kullanilan_ilaclar": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        "hedefler": {
+          "type": "object",
+          "properties": {
+            "ana_hedef": {
+              "type": "string",
+              "enum": ["kilo_verme", "kilo_alma", "kas_kazanma", "koruma", "dengeli_beslenme"]
+            },
+            "hedef_kilo": {"type": "number"},
+            "haftalik_hedef": {"type": "number"},
+            "beslenme_tercihleri": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          },
+          "required": ["ana_hedef"]
+        },
+        "diyet_planlari": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tarih": {"type": "string", "format": "date"},
+              "gunluk_kalori": {"type": "number"},
+              "makro_dagilim": {
+                "type": "object",
+                "properties": {
+                  "protein": {"type": "number"},
+                  "karbonhidrat": {"type": "number"},
+                  "yag": {"type": "number"}
+                }
+              },
+              "ogunler": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "ogun_adi": {"type": "string"},
+                    "besinler": {"type": "array", "items": {"type": "string"}},
+                    "kalori": {"type": "number"},
+                    "aciklama": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        },
+        "takip_verileri": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tarih": {"type": "string", "format": "date"},
+              "kilo": {"type": "number"},
+              "vucut_olcumleri": {
+                "type": "object",
+                "properties": {
+                  "bel": {"type": "number"},
+                  "kalca": {"type": "number"},
+                  "gogus": {"type": "number"}
+                }
+              },
+              "degerlendirme": {"type": "string"},
+              "program_degisiklikleri": {"type": "string"}
+            }
+          }
+        }
+      },
+      "required": ["kullanici_id", "temel_bilgiler", "hedefler"]
+    }
+  },
+  "tools": [
+    {
+      "toolId": "veritabani_islemleri",
+      "name": "Veritabanı İşlemleri",
+      "type": "DATABASE",
+      "description": "MongoDB veritabanında kullanıcı verilerini yönetmek için kullanılır",
+      "config": {
+        "operation": "find_documents"
+      }
+    },
+    {
+      "toolId": "besin_bilgileri_api",
+      "name": "Besin Bilgileri API",
+      "type": "API",
+      "description": "Besin değerlerini ve kalori bilgilerini almak için kullanılır",
+      "endpoint": "https://api.edamam.com/api/nutrition-data",
+      "config": {
+        "method": "GET",
+        "timeout": 10
+      }
+    },
+    {
+      "toolId": "saglik_haberleri_rss",
+      "name": "Sağlık Haberleri RSS",
+      "type": "RSS",
+      "description": "Güncel beslenme ve sağlık haberlerini takip etmek için kullanılır",
+      "endpoint": "https://www.medicalnewstoday.com/rss",
+      "config": {
+        "update_interval": 3600
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "workflowId": "yeni_kullanici_kayit",
+      "description": "Yeni kullanıcı için profil oluşturma ve başlangıç diyet planı hazırlama",
+      "trigger": "yeni_kullanici",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "llm_prompt",
+          "prompt": "Kullanıcıdan temel bilgilerini al: yaş, boy, kilo, cinsiyet, aktivite seviyesi",
+          "output_variable": "temel_bilgiler"
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Kullanıcının sağlık durumunu öğren: alerjiler, kronik hastalıklar, kullandığı ilaçlar",
+          "output_variable": "saglik_bilgileri"
+        },
+        {
+          "nodeId": "3",
+          "type": "llm_prompt",
+          "prompt": "Kullanıcının hedeflerini belirle: kilo verme/alma, kas kazanma, beslenme tercihleri",
+          "output_variable": "hedefler"
+        },
+        {
+          "nodeId": "4",
+          "type": "tool_call",
+          "toolId": "veritabani_islemleri",
+          "params": {
+            "operation": "insert_document",
+            "collection_name": "diyetisyen_verileri",
+            "document": {
+              "kullanici_id": "$user_id",
+              "temel_bilgiler": "$temel_bilgiler",
+              "saglik_bilgileri": "$saglik_bilgileri",
+              "hedefler": "$hedefler",
+              "olusturma_tarihi": "$current_date"
+            }
+          },
+          "output_variable": "kayit_sonucu"
+        },
+        {
+          "nodeId": "5",
+          "type": "llm_prompt",
+          "prompt": "Toplanan bilgilere göre kişiselleştirilmiş başlangıç diyet planı oluştur",
+          "output_variable": "baslangic_plani"
+        },
+        {
+          "nodeId": "6",
+          "type": "send_response",
+          "message": "Hoş geldiniz! Profiliniz başarıyla oluşturuldu ve size özel diyet planınız hazırlandı: $baslangic_plani"
+        }
+      ]
+    },
+    {
+      "workflowId": "haftalik_takip",
+      "description": "Kullanıcının haftalık ilerlemesini değerlendirme ve plan güncelleme",
+      "trigger": "haftalik_kontrol",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "llm_prompt",
+          "prompt": "Kullanıcıdan güncel kilo ve vücut ölçümlerini iste",
+          "output_variable": "guncel_olcumler"
+        },
+        {
+          "nodeId": "2",
+          "type": "tool_call",
+          "toolId": "veritabani_islemleri",
+          "params": {
+            "operation": "find_documents",
+            "collection_name": "diyetisyen_verileri",
+            "query": {"kullanici_id": "$user_id"},
+            "limit": 1
+          },
+          "output_variable": "kullanici_verileri"
+        },
+        {
+          "nodeId": "3",
+          "type": "llm_prompt",
+          "prompt": "Önceki verilerle karşılaştırarak ilerlemeyi analiz et: $kullanici_verileri vs $guncel_olcumler",
+          "output_variable": "ilerleme_analizi"
+        },
+        {
+          "nodeId": "4",
+          "type": "llm_prompt",
+          "prompt": "İlerleme analizine göre diyet planını güncelle ve öneriler sun",
+          "output_variable": "guncellenmis_plan"
+        },
+        {
+          "nodeId": "5",
+          "type": "tool_call",
+          "toolId": "veritabani_islemleri",
+          "params": {
+            "operation": "update_document",
+            "collection_name": "diyetisyen_verileri",
+            "query": {"kullanici_id": "$user_id"},
+            "update": {
+              "$push": {
+                "takip_verileri": {
+                  "tarih": "$current_date",
+                  "kilo": "$guncel_olcumler.kilo",
+                  "vucut_olcumleri": "$guncel_olcumler.olcumler",
+                  "degerlendirme": "$ilerleme_analizi",
+                  "program_degisiklikleri": "$guncellenmis_plan"
+                }
+              }
+            }
+          },
+          "output_variable": "guncelleme_sonucu"
+        },
+        {
+          "nodeId": "6",
+          "type": "send_response",
+          "message": "Haftalık değerlendirmeniz tamamlandı! İlerleme: $ilerleme_analizi. Güncellenmiş planınız: $guncellenmis_plan"
+        }
+      ]
+    },
+    {
+      "workflowId": "gunluk_menu_onerisi",
+      "description": "Kullanıcının tercihlerine göre günlük menü önerisi",
+      "trigger": "menu_iste",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "tool_call",
+          "toolId": "veritabani_islemleri",
+          "params": {
+            "operation": "find_documents",
+            "collection_name": "diyetisyen_verileri",
+            "query": {"kullanici_id": "$user_id"},
+            "limit": 1
+          },
+          "output_variable": "kullanici_profili"
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Kullanıcı profiline göre günlük menü önerisi hazırla: $kullanici_profili",
+          "output_variable": "gunluk_menu"
+        },
+        {
+          "nodeId": "3",
+          "type": "tool_call",
+          "toolId": "besin_bilgileri_api",
+          "params": {
+            "app_id": "nutrition_app",
+            "app_key": "nutrition_key",
+            "ingr": "$gunluk_menu"
+          },
+          "output_variable": "besin_degerleri"
+        },
+        {
+          "nodeId": "4",
+          "type": "send_response",
+          "message": "Bugünkü menü öneriniz: $gunluk_menu. Toplam besin değerleri: $besin_degerleri"
+        }
+      ]
+    },
+    {
+      "workflowId": "saglik_haberleri_ozeti",
+      "description": "Güncel sağlık ve beslenme haberlerini özetleme",
+      "trigger": "haber_ozeti",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "tool_call",
+          "toolId": "saglik_haberleri_rss",
+          "params": {},
+          "output_variable": "guncel_haberler"
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Beslenme ve diyet ile ilgili haberleri özetle: $guncel_haberler",
+          "output_variable": "haber_ozeti"
+        },
+        {
+          "nodeId": "3",
+          "type": "send_response",
+          "message": "Güncel beslenme haberleri özeti: $haber_ozeti"
+        }
+      ]
+    }
+  ],
+  "schedules": [
+    {
+      "scheduleId": "haftalik_kontrol",
+      "description": "Her hafta kullanıcı ilerlemesini kontrol et",
+      "cron": "0 10 * * 1",
+      "workflowId": "haftalik_takip"
+    },
+    {
+      "scheduleId": "gunluk_motivasyon",
+      "description": "Günlük motivasyon mesajı gönder",
+      "cron": "0 8 * * *",
+      "workflowId": "gunluk_menu_onerisi"
+    },
+    {
+      "scheduleId": "haftalik_haber_ozeti",
+      "description": "Haftalık sağlık haberleri özeti",
+      "cron": "0 18 * * 5",
+      "workflowId": "saglik_haberleri_ozeti"
+    }
+  ]
+} 

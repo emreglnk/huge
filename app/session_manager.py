@@ -45,8 +45,13 @@ class SessionManager:
             The session document or None if not found.
         """
         logger.info(f"Querying for session with session_id: '{session_id}'")
-        session = await self._sessions_collection.find_one({"session_id": session_id})
+        session = await self._sessions_collection.find_one({"session_id": session_id}, {"_id": 0})
         if session:
+            # Convert datetime objects to strings for JSON serialization
+            if "created_at" in session and session["created_at"]:
+                session["created_at"] = session["created_at"].isoformat()
+            if "last_activity" in session and session["last_activity"]:
+                session["last_activity"] = session["last_activity"].isoformat()
             logger.info(f"Found session: {session}")
         else:
             logger.warning(f"Session with session_id: '{session_id}' not found.")
@@ -68,25 +73,35 @@ class SessionManager:
             "user_id": user_id,
             "agent_id": agent_id,
             "active": True
-        })
+        }, {"_id": 0})
         
         if session:
+            # Convert datetime objects to strings for JSON serialization
+            if "created_at" in session and session["created_at"]:
+                session["created_at"] = session["created_at"].isoformat()
+            if "last_activity" in session and session["last_activity"]:
+                session["last_activity"] = session["last_activity"].isoformat()
             return session
         
         # Create new session
         session_id = str(uuid.uuid4())
+        now = datetime.utcnow()
         session = {
             "session_id": session_id,
             "user_id": user_id,
             "agent_id": agent_id,
-            "created_at": datetime.utcnow(),
-            "last_activity": datetime.utcnow(),
+            "created_at": now,
+            "last_activity": now,
             "active": True,
             "context": {}
         }
         
         await self._sessions_collection.insert_one(session)
         logger.info(f"Created new session {session_id} for user {user_id} with agent {agent_id}")
+        
+        # Convert datetime objects to strings for JSON serialization before returning
+        session["created_at"] = session["created_at"].isoformat()
+        session["last_activity"] = session["last_activity"].isoformat()
         return session
     
     async def update_session_context(self, session_id: str, context_updates: Dict[str, Any]) -> None:
@@ -143,11 +158,19 @@ class SessionManager:
         if user_id:
             filter_query["user_id"] = user_id
         
-        cursor = self._sessions_collection.find(filter_query)
+        cursor = self._sessions_collection.find(filter_query, {"_id": 0})
         # Sort by last activity, most recent first
         cursor = cursor.sort("last_activity", -1)
         
         sessions = await cursor.to_list(length=100)  # Limit to 100 sessions max
+        
+        # Convert datetime objects to strings for JSON serialization
+        for session in sessions:
+            if "created_at" in session and session["created_at"]:
+                session["created_at"] = session["created_at"].isoformat()
+            if "last_activity" in session and session["last_activity"]:
+                session["last_activity"] = session["last_activity"].isoformat()
+        
         return sessions
     
     async def find_latest_session(self, user_id: str, agent_id: str) -> Optional[Dict[str, Any]]:
@@ -163,8 +186,13 @@ class SessionManager:
         """
         query = {"user_id": user_id, "agent_id": agent_id, "active": True}
         logger.info(f"Finding latest session with query: {query}")
-        session = await self._sessions_collection.find_one(query, sort=[("last_activity", -1)])
+        session = await self._sessions_collection.find_one(query, {"_id": 0}, sort=[("last_activity", -1)])
         if session:
+            # Convert datetime objects to strings for JSON serialization
+            if "created_at" in session and session["created_at"]:
+                session["created_at"] = session["created_at"].isoformat()
+            if "last_activity" in session and session["last_activity"]:
+                session["last_activity"] = session["last_activity"].isoformat()
             logger.info(f"Found latest session: {session['session_id']}")
         else:
             logger.info("No latest session found.")
@@ -182,10 +210,16 @@ class SessionManager:
             List of conversation history entries, sorted from oldest to newest.
         """
         logger.info(f"Fetching history for session_id: '{session_id}', limit: {limit}")
-        cursor = self._history_collection.find({"session_id": session_id})
+        cursor = self._history_collection.find({"session_id": session_id}, {"_id": 0})  # Exclude _id field
         cursor = cursor.sort("timestamp", -1).limit(limit)
         history = await cursor.to_list(length=limit)
         logger.info(f"Found {len(history)} history entries for session_id: '{session_id}'.")
+        
+        # Convert datetime objects to strings for JSON serialization
+        for entry in history:
+            if "timestamp" in entry and entry["timestamp"]:
+                entry["timestamp"] = entry["timestamp"].isoformat()
+        
         # Reversing to show oldest first
         return list(reversed(history))
     
@@ -199,7 +233,7 @@ class SessionManager:
         Returns:
             The session context dictionary.
         """
-        session = await self._sessions_collection.find_one({"session_id": session_id})
+        session = await self._sessions_collection.find_one({"session_id": session_id}, {"_id": 0})
         if not session:
             return {}
         

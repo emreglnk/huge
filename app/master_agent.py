@@ -80,34 +80,63 @@ def process_user_input(conversation_id: str, user_message: str) -> MasterAgentSt
         state = active_conversations[conversation_id]
     
     # Add user message to conversation
-    state.messages.append(MasterAgentMessage(role="user", content=user_message))
+    state.messages.append(MasterAgentMessage(role="user", content=user_message.strip()))
     
     # Process based on current step
     if state.current_step == 0:  # First question was for agent name
-        state.agent_data["agentName"] = user_message
+        agent_name = user_message.strip()
+        if len(agent_name) < 2:
+            state.messages.append(MasterAgentMessage(role="assistant", content="Agent adı en az 2 karakter olmalıdır. Lütfen geçerli bir ad girin:"))
+            return state
+        state.agent_data["agentName"] = agent_name
     
     elif state.current_step == 1:  # Agent ID
-        state.agent_data["agentId"] = user_message
+        agent_id = user_message.strip().lower().replace(" ", "_")
+        if not agent_id.replace("_", "").isalnum():
+            state.messages.append(MasterAgentMessage(role="assistant", content="Agent ID sadece harf, rakam ve alt çizgi içerebilir. Lütfen geçerli bir ID girin:"))
+            return state
+        state.agent_data["agentId"] = agent_id
     
     elif state.current_step == 2:  # System prompt
-        state.agent_data["systemPrompt"] = user_message
+        system_prompt = user_message.strip()
+        if len(system_prompt) < 10:
+            state.messages.append(MasterAgentMessage(role="assistant", content="Sistem promptu en az 10 karakter olmalıdır. Lütfen daha detaylı bir açıklama yapın:"))
+            return state
+        state.agent_data["systemPrompt"] = system_prompt
     
     elif state.current_step == 3:  # LLM Provider
-        state.agent_data["llmProvider"] = user_message.lower()
+        provider = user_message.lower().strip()
+        valid_providers = ["openai", "deepseek", "gemini"]
+        if provider not in valid_providers:
+            state.messages.append(MasterAgentMessage(role="assistant", content=f"Geçersiz sağlayıcı. Lütfen şunlardan birini seçin: {', '.join(valid_providers)}"))
+            return state
+        
+        state.agent_data["llmProvider"] = provider
         
         # Initialize llmConfig if it doesn't exist
         if "llmConfig" not in state.agent_data:
             state.agent_data["llmConfig"] = {}
         
-        state.agent_data["llmConfig"]["provider"] = user_message.lower()
+        state.agent_data["llmConfig"]["provider"] = provider
     
     elif state.current_step == 4:  # LLM Model
-        state.agent_data["llmModel"] = user_message
-        state.agent_data["llmConfig"]["model"] = user_message
+        model = user_message.strip()
+        if not model:
+            state.messages.append(MasterAgentMessage(role="assistant", content="Model adı boş olamaz. Lütfen geçerli bir model adı girin:"))
+            return state
+        state.agent_data["llmModel"] = model
+        state.agent_data["llmConfig"]["model"] = model
     
     elif state.current_step == 5:  # Confirmation
-        if user_message.lower() in ["yes", "y", "ok", "sure"]:
+        response = user_message.lower().strip()
+        if response in ["evet", "yes", "y", "ok", "tamam", "sure"]:
             state.completed = True
+        elif response in ["hayır", "no", "n", "iptal", "cancel"]:
+            state.messages.append(MasterAgentMessage(role="assistant", content="Agent oluşturma iptal edildi. Yeniden başlamak için yeni bir konuşma başlatın."))
+            return state
+        else:
+            state.messages.append(MasterAgentMessage(role="assistant", content="Lütfen 'evet' veya 'hayır' ile yanıtlayın:"))
+            return state
     
     # Get next prompt
     next_prompt = get_next_prompt(state.current_step + 1, state.agent_data)

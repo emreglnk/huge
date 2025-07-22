@@ -248,7 +248,7 @@ TOOL_REGISTRY: Dict[str, Callable] = {
 }
 
 # Allowed tool types for security
-ALLOWED_TOOL_TYPES = {'API', 'RSS', 'DATABASE'}
+ALLOWED_TOOL_TYPES = {'API', 'RSS', 'DATABASE', 'TELEGRAM'}
 
 async def execute_tool(tool: Tool, params: Dict[str, Any] = None) -> Dict[str, Any]:
     """
@@ -340,6 +340,98 @@ async def execute_database_tool(tool: Tool, params: Dict[str, Any]) -> Dict[str,
 
 # Add DATABASE tool to registry after function definition
 TOOL_REGISTRY['DATABASE'] = execute_database_tool
+
+async def execute_telegram_tool(tool: Tool, params: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Execute Telegram API tool to send messages.
+    
+    Args:
+        tool: The Telegram tool configuration
+        params: Parameters containing chat_id and message
+    
+    Returns:
+        Dict containing the result of the Telegram API call
+    """
+    try:
+        import os
+        
+        # Get Telegram bot token from environment
+        bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+        if not bot_token:
+            raise ToolExecutionError("TELEGRAM_BOT_TOKEN environment variable not set")
+        
+        # Validate required parameters
+        if not params:
+            raise ToolExecutionError("Telegram tool requires parameters")
+        
+        chat_id = params.get('chat_id')
+        message = params.get('message')
+        
+        if not chat_id:
+            raise ToolExecutionError("chat_id parameter is required")
+        if not message:
+            raise ToolExecutionError("message parameter is required")
+        
+        # Sanitize inputs
+        sanitized_params = validate_and_sanitize_input({'chat_id': str(chat_id), 'message': str(message)}, tool)
+        chat_id = sanitized_params.get('chat_id', str(chat_id))
+        message = sanitized_params.get('message', str(message))
+        
+        # If chat_id looks like a username, try to resolve it to actual chat_id
+        if not chat_id.isdigit() and not chat_id.startswith('-'):
+            from .telegram_auth_manager import telegram_auth_manager
+            try:
+                resolved_chat_id = await telegram_auth_manager.get_chat_id_for_user(chat_id)
+                if resolved_chat_id:
+                    chat_id = resolved_chat_id
+                    logger.info(f"Resolved username {params.get('chat_id')} to chat_id {chat_id}")
+                else:
+                    logger.warning(f"Could not resolve username {params.get('chat_id')} to chat_id")
+            except Exception as e:
+                logger.warning(f"Error resolving username to chat_id: {str(e)}")
+        
+        # Prepare Telegram API request
+        telegram_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+        
+        payload = {
+            "chat_id": chat_id,
+            "text": message,
+            "parse_mode": "Markdown"  # Support Markdown formatting
+        }
+        
+        # Make API request with timeout
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                telegram_url,
+                json=payload,
+                timeout=30.0
+            )
+        
+        if response.status_code == 200:
+            result = response.json()
+            logger.info(f"Telegram message sent successfully to {chat_id}")
+            return {
+                "success": True,
+                "message_id": result.get("result", {}).get("message_id"),
+                "chat_id": chat_id,
+                "status": "sent"
+            }
+        else:
+            error_msg = f"Telegram API error: {response.status_code} - {response.text}"
+            logger.error(error_msg)
+            raise ToolExecutionError(error_msg)
+            
+    except httpx.TimeoutException:
+        error_msg = f"Timeout while sending Telegram message to {chat_id}"
+        logger.error(error_msg)
+        raise ToolExecutionError(error_msg)
+    except Exception as e:
+        error_msg = f"Unexpected error in Telegram tool {tool.toolId}: {str(e)}"
+        logger.error(error_msg)
+        raise ToolExecutionError(error_msg)
+
+# Add Telegram tool to registry
+TOOL_REGISTRY['TELEGRAM'] = execute_telegram_tool
 
 def add_tool_type(tool_type: str, executor_func: Callable) -> None:
     """

@@ -1,0 +1,230 @@
+{
+  "owner": "test",
+  "agentId": "molekuler_biyolog_agent_v1",
+  "agentName": "MolecularBio AI - Bitki Biyoteknolojisi Uzmanı",
+  "version": "1.0",
+  "systemPrompt": "Sen bir uzman moleküler biyolog AI asistanısın. Bitki biyoteknolojisi, genetik mühendisliği ve moleküler biyoloji alanlarında derin uzmanlığa sahipsin. Araştırma projelerini yönetir, laboratuvar protokolleri hazırlar ve bilimsel verileri analiz edersin. Güncel literatürü takip eder, yenilikçi çözümler önerir ve araştırmaları optimize edersin.\n\n🤖 **TELEGRAM ENTEGRASYONUNDAKİ YETKİLERİN:**\n- Kullanıcılara Telegram üzerinden güncel bilimsel özetler, laboratuvar protokolleri ve araştırmaları güncellemeleri gönderebilirsin\n- Zamanlanmış mesajlarla araştırmaları ilerlemesini takip edebilir ve bilimsel toplulukla paylaşım yapabilirsin\n- Telegram üzerinden araştırmaları verilerini işleyebilir ve analiz sonuçlarını paylaşabilirsin\n- Kullanıcı izni ile Telegram'a kişiselleştirilmiş araştırmaları planları ve bilimsel raporlar gönderebilirsin\n- Acil laboratuvar durumlarında hızlı protokol önerileri ve güvenlik uyarıları yapabilirsin\n\n🔧 **TOOL KULLANIM YÖNERGELERİ:**\n- Araştırma bildirimi istediğinde **telegram_arastirma_bildirimi** tool'unu kullan\n- Literatür taraması için **pubmed_search** tool'unu kullan\n- Biyoinformatik analiz için **bioinformatics_tools** tool'unu kullan\n- Tool çağırma formatı: `[TOOL_CALL: tool_id, {\"param1\": \"value1\", \"param2\": \"value2\"}]`\n- Telegram mesajı örneği: `[TOOL_CALL: telegram_arastirma_bildirimi, {\"message\": \"🧬 Yeni araştırmaları bulguları! CRISPR-Cas9 güncellemesi.\"}]`\n\nDaima bilimsel doğruluk ve etik ilkeleri ön planda tutarsın. Sadece kanıtlanmış bilimsel verileri paylaşır, spekülasyonlardan kaçınırsın. Araştırmacıların motivasyonunu yüksek tutmak için destekleyici ve ilham verici bir yaklaşım benimser ve **gerçekten** Telegram bildirimleri gönderirsin.",\n\nUZMANLIK ALANLARIN:\n- Bitki moleküler biyolojisi ve genetiği\n- Bitki biyoteknolojisi ve genetik mühendisliği\n- Transkripsiyon faktörleri ve gen regülasyonu\n- Protein yapısı ve fonksiyonu\n- Metabolomik ve proteomik\n- CRISPR ve genom editleme teknikleri\n- Bitki stres biyolojisi ve adaptasyon\n- Sekonder metabolit biyosentezi\n- Bitki-mikroorganizma etkileşimleri\n- Filogenetik ve evrimsel biyoloji\n\nYANITLAMA PRENSİPLERİN:\n1. **DOKTORA SEVİYESİ**: Her konuyu PhD düzeyinde detaylı açıkla\n2. **REFERANS KAYNAKLARI**: Sadece yüksek h-indeksli dergileri kullan (Nature, Science, Cell, Plant Cell, PNAS, New Phytologist vb.)\n3. **AKADEMİK FORMAT**: Bilimsel yazım kurallarına uygun, referanslarla desteklenmiş açıklamalar\n4. **GÜNCEL BİLGİ**: En son araştırmaları ve teknolojik gelişmeleri içer\n5. **MOLEKÜLER DETAY**: Mekanizmaları moleküler düzeyde açıkla\n6. **VİZUAL DESTEK**: Karmaşık süreçler için Mermaid diyagramları kullan\n7. **TELEGRAM MESAJLARI**: Telegram'a gönderilecek bilimsel içerikleri akademik formatta hazırla\n\nFORMAT KURALLARI:\n- Bilimsel terimleri italik *gen adları* şeklinde yaz\n- Protein adlarını BÜYÜK HARFLERLE yaz\n- Referansları (Author et al., Year) formatında belirt\n- Tablolar ile karşılaştırmalı analiz yap\n- Süreçleri adım adım açıkla\n\nÖRNEK YAPIT:\n## 🧬 *Arabidopsis thaliana*'da Transkripsiyon Faktörleri\n\n### Temel Mekanizma\n| TF Ailesi | Üye Sayısı | Hedef Süreç | Örnek Genler |\n|-----------|------------|-------------|---------------|\n| MYB | 198 | Flavonoid biyosentezi | *AtMYB75*, *AtMYB90* |\n| bHLH | 162 | Stomata gelişimi | *AtbHLH093*, *AtbHLH096* |\n\n```mermaid\ngraph TD\n    A[Çevresel Sinyal] --> B[TF Aktivasyonu]\n    B --> C[DNA Bağlanma]\n    C --> D[Transkripsiyon Başlatma]\n    D --> E[mRNA Üretimi]\n```\n\n**Referanslar**: \n- (Dubos et al., 2010, Trends Plant Sci.)\n- (Pires & Dolan, 2010, Development)\n\nHer yanıtında mutlaka en güncel literatürü kullan ve doktora tezi yazacak birinin ihtiyacı olan derinlikte bilgi ver!",
+  "llmConfig": {
+    "provider": "deepseek",
+    "model": "deepseek-chat",
+    "temperature": 0.1,
+    "max_tokens": 4000
+  },
+  "dataSchema": {
+    "collectionName": "molekuler_biyoloji_verileri",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "arastirma_id": {
+          "type": "string",
+          "description": "Benzersiz araştırma/soru tanımlayıcı"
+        },
+        "konu_kategorisi": {
+          "type": "string",
+          "enum": ["bitki_genetigi", "protein_yapisi", "metabolomik", "gen_ekspresyonu", "biyoteknoloji", "stres_biyolojisi", "evolusyon", "filogenetik", "genomik", "transkriptomik"],
+          "description": "Ana araştırma kategorisi"
+        },
+        "organizma_bilgisi": {
+          "type": "object",
+          "properties": {
+            "tur_adi": {"type": "string", "description": "Latince tür adı"},
+            "ortak_adi": {"type": "string", "description": "Yaygın kullanılan isim"},
+            "genom_boyutu": {"type": "string", "description": "Genom boyutu (Mb)"},
+            "kromozom_sayisi": {"type": "integer", "description": "Kromozom sayısı"}
+          }
+        },
+        "gen_protein_bilgisi": {
+          "type": "object",
+          "properties": {
+            "gen_adi": {"type": "string", "description": "Gen adı (italik format)"},
+            "protein_adi": {"type": "string", "description": "Protein adı (büyük harf)"},
+            "fonksiyon": {"type": "string", "description": "Moleküler fonksiyon"},
+            "lokalizasyon": {"type": "string", "description": "Hücresel lokalizasyon"},
+            "homologlar": {"type": "array", "items": {"type": "string"}, "description": "Homolog genler"}
+          }
+        },
+        "deneysel_veriler": {
+          "type": "object",
+          "properties": {
+            "yontem": {"type": "string", "description": "Kullanılan deneysel yöntem"},
+            "sonuclar": {"type": "string", "description": "Elde edilen sonuçlar"},
+            "istatistik": {"type": "string", "description": "İstatistiksel analiz sonuçları"}
+          }
+        },
+        "referanslar": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "yazar": {"type": "string", "description": "Yazar adları"},
+              "baslik": {"type": "string", "description": "Makale başlığı"},
+              "dergi": {"type": "string", "description": "Dergi adı"},
+              "yil": {"type": "integer", "description": "Yayın yılı"},
+              "doi": {"type": "string", "description": "DOI numarası"},
+              "h_index": {"type": "integer", "description": "Derginin h-indeksi"},
+              "impact_factor": {"type": "number", "description": "Etki faktörü"}
+            }
+          }
+        },
+        "arastirma_notlari": {
+          "type": "object",
+          "properties": {
+            "hipotez": {"type": "string", "description": "Araştırma hipotezi"},
+            "metodoloji": {"type": "string", "description": "Planlanan/uygulanan metodoloji"},
+            "bulgular": {"type": "string", "description": "Önemli bulgular"},
+            "sonuc": {"type": "string", "description": "Sonuç ve değerlendirme"},
+            "gelecek_calisma": {"type": "string", "description": "Gelecek çalışma önerileri"}
+          }
+        }
+      },
+      "required": ["arastirma_id", "konu_kategorisi", "referanslar"]
+    }
+  },
+  "tools": [
+    {
+      "toolId": "pubmed_search",
+      "name": "PubMed Literatür Taraması",
+      "type": "API",
+      "description": "PubMed veritabanında yüksek h-indeksli dergilerde yayınlanan makaleleri arar. Sadece Nature, Science, Cell, Plant Cell, PNAS, New Phytologist gibi prestijli dergileri hedefler.",
+      "config": {
+        "endpoint": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/",
+        "filters": "journal:Nature[Journal] OR journal:Science[Journal] OR journal:Cell[Journal] OR journal:Plant Cell[Journal] OR journal:PNAS[Journal] OR journal:New Phytologist[Journal]",
+        "sort": "relevance",
+        "max_results": 50
+      }
+    },
+    {
+      "toolId": "ncbi_database",
+      "name": "NCBI Veritabanı Erişimi",
+      "type": "DATABASE",
+      "description": "GenBank, RefSeq, UniProt gibi biyolojik veritabanlarından gen ve protein bilgilerini alır. Sekans analizi, homolog arama ve filogenetik analiz için kullanılır.",
+      "config": {
+        "databases": ["nucleotide", "protein", "pubmed", "taxonomy", "sra"],
+        "tools": ["blast", "primer-blast", "tree-viewer"]
+      }
+    },
+    {
+      "toolId": "plant_databases",
+      "name": "Bitki Biyoloji Veritabanları",
+      "type": "API",
+      "description": "TAIR, PlantNet, Gramene gibi bitki-spesifik veritabanlarından bilgi alır. Arabidopsis, çeltik, mısır gibi model organizmaların genomik verilerine erişim sağlar.",
+      "config": {
+        "databases": ["TAIR", "PlantNet", "Gramene", "Phytozome", "EnsemblPlants"],
+        "data_types": ["genome", "transcriptome", "proteome", "metabolome"]
+      }
+    },
+    {
+      "toolId": "bioinformatics_tools",
+      "name": "Biyoinformatik Analiz Araçları",
+      "type": "API",
+      "description": "Sekans analizi, protein yapı tahmini, filogenetik analiz için biyoinformatik araçlarını çalıştırır. BLAST, ClustalW, MEGA, SwissModel gibi araçları içerir.",
+      "config": {
+        "tools": ["blast", "clustalw", "mega", "swissmodel", "interpro", "pfam"],
+        "analysis_types": ["alignment", "phylogeny", "structure", "domain", "motif"]
+      }
+    },
+    {
+      "toolId": "literature_analyzer",
+      "name": "Literatür Analiz Motoru",
+      "type": "API",
+      "description": "Bilimsel makaleleri analiz eder, önemli bulguları özetler ve referans ağlarını çıkarır. Otomatik olarak yüksek etki faktörlü dergileri önceliklendirir.",
+      "config": {
+        "analysis_types": ["keyword_extraction", "citation_analysis", "trend_analysis"],
+        "priority_journals": ["Nature", "Science", "Cell", "Plant Cell", "PNAS", "New Phytologist", "Plant Journal", "Current Biology"]
+      }
+    },
+    {
+      "toolId": "telegram_arastirma_bildirimi",
+      "name": "Telegram Araştırma Bildirim Sistemi",
+      "type": "TELEGRAM",
+      "description": "Kullanıcılara Telegram üzerinden bilimsel özetler, laboratuvar protokolleri ve kişiselleştirilmiş araştırma planları göndermek için kullanılır",
+      "config": {
+        "method": "sendMessage",
+        "parse_mode": "Markdown"
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "workflowId": "gen_analiz_workflow",
+      "description": "Belirli bir gen için kapsamlı moleküler analiz yapar",
+      "trigger": "gen_analizi",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "llm_prompt",
+          "prompt": "GenBank'tan sekans bilgilerini al ve temel analiz yap",
+          "output_variable": "sekans_bilgileri"
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "BLAST analizi ile homolog genleri bul",
+          "output_variable": "homolog_genler"
+        },
+        {
+          "nodeId": "3",
+          "type": "llm_prompt",
+          "prompt": "Filogenetik analiz yap ve evrimsel ilişkileri belirle",
+          "output_variable": "filogenetik_analiz"
+        }
+      ]
+    },
+    {
+      "workflowId": "protein_yapisi_workflow",
+      "description": "Protein yapısı ve fonksiyonunu detaylı analiz eder",
+      "trigger": "protein_analizi",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "llm_prompt",
+          "prompt": "UniProt'tan protein bilgilerini al",
+          "output_variable": "protein_bilgileri"
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "3D yapı tahmini yap",
+          "output_variable": "protein_yapisi"
+        }
+      ]
+    },
+    {
+      "workflowId": "literatur_ozet_workflow",
+      "description": "Belirli bir konuda doktora seviyesinde kapsamlı literatür özeti hazırlar",
+      "trigger": "literatur_analizi",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "llm_prompt",
+          "prompt": "Anahtar kelimeleri ve MeSH terimlerini belirle",
+          "output_variable": "anahtar_kelimeler"
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Sistematik literatür taraması yap",
+          "output_variable": "literatur_taramasi"
+        }
+      ]
+    }
+  ],
+  "schedules": [
+    {
+      "scheduleId": "guncel_literatur_takip",
+      "name": "Güncel Literatür Takibi",
+      "description": "Bitki biyoteknolojisi alanındaki en güncel yayınları takip eder",
+      "cron": "0 9 * * 1",
+      "workflowId": "literatur_ozet_workflow",
+      "enabled": true
+    },
+    {
+      "scheduleId": "veritabani_guncelleme",
+      "name": "Veritabanı Güncellemesi",
+      "description": "NCBI, TAIR gibi veritabanlarındaki yeni verileri takip eder",
+      "cron": "0 2 * * *",
+      "workflowId": "gen_analiz_workflow",
+      "enabled": true
+    }
+  ]
+} 

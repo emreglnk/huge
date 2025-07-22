@@ -1,0 +1,439 @@
+{
+  "owner": "test",
+  "agentId": "fizyoterapist_agent_v1",
+  "agentName": "PhysioReha AI Fizyoterapist",
+  "version": "1.0",
+  "systemPrompt": "Sen profesyonel bir AI fizyoterapist asistanısın. Hasta değerlendirmesi, tedavi planlaması ve rehabilitasyon süreçlerinde uzmanlık sağlarsın. Her hasta için bireysel fiziksel değerlendirme yapar, kanıta dayalı tedavi protokolleri oluşturur ve ilerlemeyi sistematik olarak takip edersin. Spor yaralanmaları, ortopedik rehabilitasyon, nörolojik fizyoterapi ve geriatrik fizyoterapi alanlarında derin bilgiye sahipsin.\n\n🤖 **TELEGRAM ENTEGRASYONUNDAKİ YETKİLERİN:**\n- Hastalara Telegram üzerinden egzersiz hatırlatmaları, ilerleme raporları ve motivasyon mesajları gönderebilirsin\n- Zamanlanmış mesajlarla hasta takibini sürdürebilir, tedavi uyumunu artırabilirsin\n- Telegram üzerinden hasta geri bildirimlerini alabilir ve tedavi planını güncelleyebilirsin\n- Kullanıcı izni ile Telegram'a kişiselleştirilmiş egzersiz programları ve eğitim materyalleri gönderebilirsin\n- Acil durumlarda hızlı müdahale önerileri ve yönlendirme yapabilirsin\n\n🔧 **TOOL KULLANIM YÖNERGELERİ:**\n- Hasta Telegram mesajı istediğinde **telegram_bildirim** tool'unu kullan\n- Hasta verilerini kaydetmek/okumak için **hasta_veritabani** tool'unu kullan\n- Egzersiz programları için **egzersiz_kutuphanesi_api** tool'unu kullan\n- Tool çağırma formatı: `[TOOL_CALL: tool_id, {\"param1\": \"value1\", \"param2\": \"value2\"}]`\n- Telegram mesajı örneği: `[TOOL_CALL: telegram_bildirim, {\"message\": \"🏃‍♂️ Egzersiz zamanı! Bugünkü programınız hazır.\"}]`\n\nHer zaman kanıta dayalı uygulamaları önceler, hasta güvenliğini en üst seviyede tutarsın. Tıbbi tanı koymaz, sadece fizyoterapi kapsamındaki değerlendirme ve önerilerini sunarsın. Hasta motivasyonunu yüksek tutmak için pozitif ve destekleyici bir yaklaşım benimser ve **gerçekten** Telegram mesajları gönderirsin.",
+  "llmConfig": {
+    "provider": "deepseek",
+    "model": "deepseek-chat"
+  },
+  "dataSchema": {
+    "collectionName": "fizyoterapist_verileri",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "hasta_id": {
+          "type": "string",
+          "description": "Benzersiz hasta tanımlayıcı"
+        },
+        "demografik_bilgiler": {
+          "type": "object",
+          "properties": {
+            "yas": {"type": "number"},
+            "boy": {"type": "number"},
+            "kilo": {"type": "number"},
+            "cinsiyet": {"type": "string", "enum": ["erkek", "kadin", "diger"]},
+            "meslek": {"type": "string"},
+            "aktivite_seviyesi": {
+              "type": "string",
+              "enum": ["sedanter", "hafif", "orta", "aktif", "sporcu"]
+            },
+            "dominant_el": {"type": "string", "enum": ["sag", "sol", "cift"]}
+          },
+          "required": ["yas", "boy", "kilo", "cinsiyet", "aktivite_seviyesi"]
+        },
+        "tibbi_gecmis": {
+          "type": "object",
+          "properties": {
+            "sikayet": {"type": "string"},
+            "yaralanma_tarihi": {"type": "string", "format": "date"},
+            "etkilenen_bolgeler": {"type": "array", "items": {"type": "string"}},
+            "onceki_yaralanmalar": {"type": "array", "items": {"type": "string"}},
+            "ameliyat_gecmisi": {"type": "array", "items": {"type": "string"}},
+            "kullanilan_ilaclar": {"type": "array", "items": {"type": "string"}},
+            "kontraendikasyonlar": {"type": "array", "items": {"type": "string"}}
+          },
+          "required": ["sikayet", "etkilenen_bolgeler"]
+        },
+        "fiziksel_degerlendirme": {
+          "type": "object",
+          "properties": {
+            "postural_analiz": {"type": "string"},
+            "hareket_acikligi": {
+              "type": "object",
+              "properties": {
+                "boyun": {"type": "string"},
+                "omuz": {"type": "string"},
+                "dirsek": {"type": "string"},
+                "el_bilegi": {"type": "string"},
+                "omurga": {"type": "string"},
+                "kalca": {"type": "string"},
+                "diz": {"type": "string"},
+                "ayak_bilegi": {"type": "string"}
+              }
+            },
+            "kas_kuvveti": {
+              "type": "object",
+              "properties": {
+                "ust_ekstremite": {"type": "string"},
+                "govde": {"type": "string"},
+                "alt_ekstremite": {"type": "string"}
+              }
+            },
+            "agri_degerlendirme": {
+              "type": "object",
+              "properties": {
+                "vas_skoru": {"type": "number", "minimum": 0, "maximum": 10},
+                "agri_turu": {"type": "string"},
+                "agri_bolgeleri": {"type": "array", "items": {"type": "string"}},
+                "tetikleyici_faktorler": {"type": "array", "items": {"type": "string"}}
+              }
+            },
+            "fonksiyonel_testler": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "test_adi": {"type": "string"},
+                  "sonuc": {"type": "string"},
+                  "puan": {"type": "number"}
+                }
+              }
+            }
+          }
+        },
+        "tedavi_planlari": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "plan_tarihi": {"type": "string", "format": "date"},
+              "faz": {
+                "type": "string",
+                "enum": ["akut", "subakut", "kuvvet", "fonksiyonel", "bakim"]
+              },
+              "hedefler": {"type": "array", "items": {"type": "string"}},
+              "egzersiz_programi": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "egzersiz_adi": {"type": "string"},
+                    "set": {"type": "number"},
+                    "tekrar": {"type": "number"},
+                    "sure": {"type": "string"},
+                    "yogunluk": {"type": "string"},
+                    "aciklama": {"type": "string"}
+                  }
+                }
+              },
+              "manuel_terapi": {"type": "array", "items": {"type": "string"}},
+              "modaliteler": {"type": "array", "items": {"type": "string"}},
+              "ev_programi": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        },
+        "ilerleme_takibi": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "tarih": {"type": "string", "format": "date"},
+              "agri_skoru": {"type": "number", "minimum": 0, "maximum": 10},
+              "fonksiyonel_durum": {"type": "string"},
+              "hareket_acikligi_degerlendirme": {"type": "string"},
+              "hasta_geri_bildirimi": {"type": "string"},
+              "objektif_bulgular": {"type": "string"},
+              "plan_degisiklikleri": {"type": "string"},
+              "bir_sonraki_hedefler": {"type": "array", "items": {"type": "string"}}
+            }
+          }
+        }
+      },
+      "required": ["hasta_id", "demografik_bilgiler", "tibbi_gecmis"]
+    }
+  },
+  "tools": [
+    {
+      "toolId": "hasta_veritabani",
+      "name": "Hasta Veritabanı İşlemleri",
+      "type": "DATABASE",
+      "description": "MongoDB veritabanında hasta verilerini yönetmek için kullanılır",
+      "config": {
+        "operation": "find_documents"
+      }
+    },
+    {
+      "toolId": "egzersiz_kutuphanesi_api",
+      "name": "Egzersiz Kütüphanesi API",
+      "type": "API",
+      "description": "Kapsamlı egzersiz veritabanından uygun egzersizleri almak için kullanılır",
+      "endpoint": "https://api.exercisedb.io/exercises",
+      "config": {
+        "method": "GET",
+        "timeout": 10
+      }
+    },
+    {
+      "toolId": "fizyoterapi_kaynaklar_rss",
+      "name": "Fizyoterapi Kaynakları RSS",
+      "type": "RSS",
+      "description": "Güncel fizyoterapi araştırmaları ve klinik güncellemelerini takip etmek için kullanılır",
+      "endpoint": "https://www.physiotherapy-journal.com/rss",
+      "config": {
+        "update_interval": 7200
+      }
+    },
+    {
+      "toolId": "degerlendirme_aracları",
+      "name": "Değerlendirme Araçları",
+      "type": "API",
+      "description": "Standardize fizyoterapi değerlendirme testlerini ve skorlarını hesaplamak için kullanılır",
+      "endpoint": "https://api.physioassessment.com/tools",
+      "config": {
+        "method": "POST",
+        "timeout": 15
+      }
+    },
+    {
+      "toolId": "telegram_bildirim",
+      "name": "Telegram Bildirim Sistemi",
+      "type": "TELEGRAM",
+      "description": "Hastalara Telegram üzerinden egzersiz hatırlatmaları, ilerleme raporları ve motivasyon mesajları göndermek için kullanılır",
+      "config": {
+        "method": "sendMessage",
+        "parse_mode": "Markdown"
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "workflowId": "yeni_hasta_degerlendirme",
+      "description": "Yeni hasta için kapsamlı fiziksel değerlendirme ve başlangıç tedavi planı oluşturma",
+      "trigger": "yeni_hasta",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "llm_prompt",
+          "prompt": "Hastadan demografik bilgilerini al: yaş, boy, kilo, cinsiyet, meslek, aktivite seviyesi",
+          "output_variable": "demografik_bilgiler"
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Hastanın tıbbi geçmişini öğren: şikayet, yaralanma tarihi, etkilenen bölgeler, önceki yaralanmalar",
+          "output_variable": "tibbi_gecmis"
+        },
+        {
+          "nodeId": "3",
+          "type": "llm_prompt",
+          "prompt": "Fiziksel değerlendirme yap: postural analiz, hareket açıklığı, kas kuvveti, ağrı değerlendirme",
+          "output_variable": "fiziksel_degerlendirme"
+        },
+        {
+          "nodeId": "4",
+          "type": "tool_call",
+          "toolId": "degerlendirme_aracları",
+          "params": {
+            "assessment_type": "comprehensive",
+            "patient_data": "$demografik_bilgiler",
+            "clinical_findings": "$fiziksel_degerlendirme"
+          },
+          "output_variable": "degerlendirme_sonucu"
+        },
+        {
+          "nodeId": "5",
+          "type": "tool_call",
+          "toolId": "hasta_veritabani",
+          "params": {
+            "operation": "insert_document",
+            "collection_name": "fizyoterapist_verileri",
+            "document": {
+              "hasta_id": "$user_id",
+              "demografik_bilgiler": "$demografik_bilgiler",
+              "tibbi_gecmis": "$tibbi_gecmis",
+              "fiziksel_degerlendirme": "$fiziksel_degerlendirme",
+              "degerlendirme_tarihi": "$current_date"
+            }
+          },
+          "output_variable": "kayit_sonucu"
+        },
+        {
+          "nodeId": "6",
+          "type": "tool_call",
+          "toolId": "egzersiz_kutuphanesi_api",
+          "params": {
+            "target_muscle": "$fiziksel_degerlendirme.etkilenen_bolgeler",
+            "difficulty": "beginner",
+            "type": "rehabilitation"
+          },
+          "output_variable": "uygun_egzersizler"
+        },
+        {
+          "nodeId": "7",
+          "type": "llm_prompt",
+          "prompt": "Değerlendirme sonuçlarına göre kişiselleştirilmiş tedavi planı oluştur: $degerlendirme_sonucu, $uygun_egzersizler",
+          "output_variable": "tedavi_plani"
+        },
+        {
+          "nodeId": "8",
+          "type": "send_response",
+          "message": "Değerlendirmeniz tamamlandı! Kişiselleştirilmiş tedavi planınız hazırlandı: $tedavi_plani"
+        }
+      ]
+    },
+    {
+      "workflowId": "ilerleme_degerlendirme",
+      "description": "Hastanın ilerlemesini değerlendirme ve tedavi planını güncelleme",
+      "trigger": "ilerleme_kontrol",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "llm_prompt",
+          "prompt": "Hastadan güncel durumunu öğren: ağrı seviyesi, fonksiyonel durum, egzersiz uyumu",
+          "output_variable": "guncel_durum"
+        },
+        {
+          "nodeId": "2",
+          "type": "tool_call",
+          "toolId": "hasta_veritabani",
+          "params": {
+            "operation": "find_documents",
+            "collection_name": "fizyoterapist_verileri",
+            "query": {"hasta_id": "$user_id"},
+            "sort": {"degerlendirme_tarihi": -1},
+            "limit": 1
+          },
+          "output_variable": "onceki_veriler"
+        },
+        {
+          "nodeId": "3",
+          "type": "tool_call",
+          "toolId": "degerlendirme_aracları",
+          "params": {
+            "assessment_type": "progress",
+            "baseline_data": "$onceki_veriler",
+            "current_data": "$guncel_durum"
+          },
+          "output_variable": "ilerleme_analizi"
+        },
+        {
+          "nodeId": "4",
+          "type": "llm_prompt",
+          "prompt": "İlerleme analizine göre tedavi planını güncelle: $ilerleme_analizi",
+          "output_variable": "guncellenmis_plan"
+        },
+        {
+          "nodeId": "5",
+          "type": "tool_call",
+          "toolId": "hasta_veritabani",
+          "params": {
+            "operation": "update_document",
+            "collection_name": "fizyoterapist_verileri",
+            "query": {"hasta_id": "$user_id"},
+            "update": {
+              "$push": {
+                "ilerleme_takibi": {
+                  "tarih": "$current_date",
+                  "agri_skoru": "$guncel_durum.agri_skoru",
+                  "fonksiyonel_durum": "$guncel_durum.fonksiyonel_durum",
+                  "hasta_geri_bildirimi": "$guncel_durum.geri_bildirim",
+                  "plan_degisiklikleri": "$guncellenmis_plan"
+                }
+              }
+            }
+          },
+          "output_variable": "guncelleme_sonucu"
+        },
+        {
+          "nodeId": "6",
+          "type": "send_response",
+          "message": "İlerleme değerlendirmeniz tamamlandı! Analiz: $ilerleme_analizi. Güncellenmiş planınız: $guncellenmis_plan"
+        }
+      ]
+    },
+    {
+      "workflowId": "gunluk_egzersiz_plani",
+      "description": "Hastanın durumuna göre günlük egzersiz programı oluşturma",
+      "trigger": "egzersiz_plani_iste",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "tool_call",
+          "toolId": "hasta_veritabani",
+          "params": {
+            "operation": "find_documents",
+            "collection_name": "fizyoterapist_verileri",
+            "query": {"hasta_id": "$user_id"},
+            "limit": 1
+          },
+          "output_variable": "hasta_profili"
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Hastanın güncel durumunu öğren: enerji seviyesi, ağrı durumu, mevcut zaman",
+          "output_variable": "guncel_durum"
+        },
+        {
+          "nodeId": "3",
+          "type": "tool_call",
+          "toolId": "egzersiz_kutuphanesi_api",
+          "params": {
+            "target_area": "$hasta_profili.etkilenen_bolgeler",
+            "intensity": "$guncel_durum.enerji_seviyesi",
+            "duration": "$guncel_durum.mevcut_zaman"
+          },
+          "output_variable": "uygun_egzersizler"
+        },
+        {
+          "nodeId": "4",
+          "type": "llm_prompt",
+          "prompt": "Hasta profiline göre kişiselleştirilmiş günlük egzersiz programı hazırla: $hasta_profili, $uygun_egzersizler",
+          "output_variable": "gunluk_program"
+        },
+        {
+          "nodeId": "5",
+          "type": "send_response",
+          "message": "Bugünkü egzersiz programınız: $gunluk_program"
+        }
+      ]
+    },
+    {
+      "workflowId": "arastirma_guncellemeleri",
+      "description": "Güncel fizyoterapi araştırmaları ve klinik güncellemelerini özetleme",
+      "trigger": "arastirma_ozeti",
+      "nodes": [
+        {
+          "nodeId": "1",
+          "type": "tool_call",
+          "toolId": "fizyoterapi_kaynaklar_rss",
+          "params": {},
+          "output_variable": "guncel_arastirmalar"
+        },
+        {
+          "nodeId": "2",
+          "type": "llm_prompt",
+          "prompt": "Fizyoterapi ve rehabilitasyon alanındaki güncel araştırmaları özetle: $guncel_arastirmalar",
+          "output_variable": "arastirma_ozeti"
+        },
+        {
+          "nodeId": "3",
+          "type": "send_response",
+          "message": "Güncel fizyoterapi araştırmaları özeti: $arastirma_ozeti"
+        }
+      ]
+    }
+  ],
+  "schedules": [
+    {
+      "scheduleId": "haftalik_ilerleme_kontrol",
+      "description": "Her hafta hasta ilerlemesini kontrol et",
+      "cron": "0 14 * * 1",
+      "workflowId": "ilerleme_degerlendirme"
+    },
+    {
+      "scheduleId": "gunluk_egzersiz_hatirlatici",
+      "description": "Günlük egzersiz programı hatırlatıcısı",
+      "cron": "0 9 * * *",
+      "workflowId": "gunluk_egzersiz_plani"
+    },
+    {
+      "scheduleId": "haftalik_arastirma_ozeti",
+      "description": "Haftalık araştırma güncellemeleri",
+      "cron": "0 17 * * 5",
+      "workflowId": "arastirma_guncellemeleri"
+    }
+  ]
+} 
