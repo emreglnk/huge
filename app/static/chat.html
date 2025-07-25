@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="tr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agent Chat - AI Agent Platform</title>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
     <style>
         * {
@@ -49,7 +51,7 @@
         }
 
         .back-button {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.2);
             color: white;
             border: none;
             padding: 10px 20px;
@@ -60,7 +62,7 @@
         }
 
         .back-button:hover {
-            background: rgba(255,255,255,0.3);
+            background: rgba(255, 255, 255, 0.3);
         }
 
         .chat-container {
@@ -68,7 +70,7 @@
             background: white;
             border-radius: 20px;
             padding: 30px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
         }
@@ -99,6 +101,8 @@
             background: #f8f9fa;
             border-radius: 10px;
             border: 2px solid #e0e0e0;
+            max-height: 500px;
+            scroll-behavior: smooth;
         }
 
         .message {
@@ -107,6 +111,19 @@
             border-radius: 10px;
             max-width: 80%;
             word-wrap: break-word;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .message.user {
@@ -129,22 +146,94 @@
             max-width: 100%;
         }
 
-        /* Markup styling for messages */
-        .message h1, .message h2, .message h3 {
+        .message.tool-use {
+            background-color: #f8f9fa;
+            border-left: 3px solid #6f42c1;
+            color: #333;
+            font-family: monospace;
+            white-space: pre-wrap;
+            font-size: 0.9rem;
+            max-width: 95%;
+        }
+
+        .message.tool-response {
+            background-color: #f2f9ff;
+            border-left: 3px solid #28a745;
+            color: #333;
+            font-family: monospace;
+            white-space: pre-wrap;
+            font-size: 0.9rem;
+            max-width: 95%;
+        }
+
+        .typing-indicator {
+            display: inline-block;
+            position: relative;
+        }
+
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #888;
+            margin: 0 2px;
+            animation: bounce 1.4s infinite ease-in-out;
+        }
+
+        .typing-indicator span:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            80%,
+            100% {
+                transform: scale(0.6);
+                opacity: 0.5;
+            }
+
+            40% {
+                transform: scale(1.0);
+                opacity: 1;
+            }
+        }
+
+        .message h1,
+        .message h2,
+        .message h3 {
             margin: 10px 0;
             color: inherit;
         }
 
-        .message h1 { font-size: 1.5em; }
-        .message h2 { font-size: 1.3em; }
-        .message h3 { font-size: 1.1em; }
+        .message h1 {
+            font-size: 1.5em;
+        }
+
+        .message h2 {
+            font-size: 1.3em;
+        }
+
+        .message h3 {
+            font-size: 1.1em;
+        }
 
         .message p {
             margin: 8px 0;
             line-height: 1.5;
         }
 
-        .message ul, .message ol {
+        .message ul,
+        .message ol {
             margin: 8px 0;
             padding-left: 20px;
         }
@@ -190,7 +279,8 @@
             margin: 10px 0;
         }
 
-        .message th, .message td {
+        .message th,
+        .message td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
@@ -218,13 +308,12 @@
             font-style: italic;
         }
 
-        /* Mermaid diagram styling */
         .message .mermaid {
             background: white;
             border-radius: 8px;
             padding: 20px;
             margin: 10px 0;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             overflow-x: auto;
         }
 
@@ -292,17 +381,18 @@
             .container {
                 padding: 10px;
             }
-            
+
             .header h1 {
                 font-size: 1.5rem;
             }
-            
+
             .chat-container {
                 padding: 20px;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="header">
@@ -337,14 +427,19 @@
         let sessionId = null;
         let authToken = null;
 
-        // Get agent ID from URL
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         function getAgentIdFromUrl() {
             const path = window.location.pathname;
             const match = path.match(/\/chat\/([^\/]+)/);
             return match ? match[1] : null;
         }
 
-        // Check authentication
         function checkAuth() {
             authToken = localStorage.getItem('authToken');
             if (!authToken) {
@@ -354,7 +449,6 @@
             return true;
         }
 
-        // Fetch with authentication and handle token expiration
         async function fetchWithAuth(url, options = {}) {
             const headers = {
                 'Authorization': `Bearer ${authToken}`,
@@ -363,8 +457,7 @@
             };
 
             const response = await fetch(url, { ...options, headers });
-            
-            // Check if token is expired or invalid
+
             if (response.status === 401) {
                 console.log('Token expired or invalid, redirecting to login');
                 localStorage.removeItem('authToken');
@@ -372,29 +465,27 @@
                 window.location.href = '/';
                 return null;
             }
-            
+
             return response;
         }
 
-        // Load agent information
         async function loadAgent() {
             try {
                 const response = await fetchWithAuth('/agents/');
                 if (response && response.ok) {
                     const agents = await response.json();
                     currentAgent = agents.find(agent => agent.agentId === agentId);
-                    
+
                     if (currentAgent) {
                         document.getElementById('page-title').textContent = currentAgent.agentName;
                         document.getElementById('agent-name').textContent = currentAgent.agentName;
-                        document.getElementById('agent-description').textContent = 
-                            currentAgent.systemPrompt ? 
-                            (currentAgent.systemPrompt.length > 200 ? 
-                             currentAgent.systemPrompt.substring(0, 200) + '...' : 
-                             currentAgent.systemPrompt) : 
-                            'Açıklama bulunmuyor';
-                        
-                        // Load chat history
+                        document.getElementById('agent-description').textContent =
+                            currentAgent.systemPrompt ?
+                                (currentAgent.systemPrompt.length > 200 ?
+                                    currentAgent.systemPrompt.substring(0, 200) + '...' :
+                                    currentAgent.systemPrompt) :
+                                'Açıklama bulunmuyor';
+
                         await loadChatHistory();
                     } else {
                         showError('Agent bulunamadı');
@@ -402,117 +493,128 @@
                 } else if (response) {
                     showError('Agent bilgileri yüklenemedi');
                 }
-                // If response is null, user is being redirected to login
             } catch (error) {
                 console.error('Error loading agent:', error);
-                // Only show error if it's not a token expiration
                 if (error.message !== 'Token expired') {
                     showError('Bir hata oluştu');
                 }
             }
         }
 
-        // Load chat history
         async function loadChatHistory() {
             try {
+                console.log('Requesting chat history for agent:', agentId);
                 const response = await fetchWithAuth(`/chat/history/${agentId}?limit=20`);
+                console.log('Chat history response status:', response.status, response.statusText);
                 if (response && response.ok) {
                     const history = await response.json();
+                    console.log('Received chat history:', history);
                     const messagesContainer = document.getElementById('chat-messages');
                     messagesContainer.innerHTML = '';
-                    
+
                     if (history.length === 0) {
-                        // No history, show welcome message
                         messagesContainer.innerHTML = `
                             <div class="message system">
-                                Merhaba! Ben ${currentAgent.agentName}. Size nasıl yardımcı olabilirim?
+                                Merhaba! Ben ${escapeHtml(currentAgent.agentName)}. Size nasıl yardımcı olabilirim?
                             </div>
                         `;
                     } else {
-                        // Display history messages
                         history.forEach(msg => {
-                            // Add user message
                             addMessage('user', msg.user_message);
-                            // Add agent response
                             addMessage('bot', msg.agent_response);
                         });
                     }
                 } else {
-                    // Error loading history, show welcome message
                     document.getElementById('chat-messages').innerHTML = `
                         <div class="message system">
-                            Merhaba! Ben ${currentAgent.agentName}. Size nasıl yardımcı olabilirim?
+                            Merhaba! Ben ${escapeHtml(currentAgent.agentName)}. Size nasıl yardımcı olabilirim?
                         </div>
                     `;
                 }
             } catch (error) {
                 console.error('Error loading chat history:', error);
-                // If it's a token error, don't show welcome message as user will be redirected
+                console.error('Error details:', {
+                    name: error.name,
+                    message: error.message,
+                    stack: error.stack
+                });
                 if (error.message !== 'Token expired') {
-                    // Show welcome message on other errors
                     document.getElementById('chat-messages').innerHTML = `
                         <div class="message system">
-                            Merhaba! Ben ${currentAgent.agentName}. Size nasıl yardımcı olabilirim?
+                            Merhaba! Ben ${escapeHtml(currentAgent.agentName)}. Size nasıl yardımcı olabilirim?
                         </div>
                     `;
                 }
             }
         }
 
-        // Add message to chat with markup support
         function addMessage(type, content) {
             const messagesContainer = document.getElementById('chat-messages');
             const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${type}`;
-            
-            // Parse markdown for bot messages, keep plain text for user messages
-            if (type === 'bot' || type === 'system') {
-                try {
-                    // Configure marked for safe HTML
-                    marked.setOptions({
-                        breaks: true,
-                        gfm: true,
-                        sanitize: false,
-                        smartLists: true,
-                        smartypants: true
-                    });
-                    
-                    messageDiv.innerHTML = marked.parse(content);
-                    
-                    // Apply syntax highlighting to code blocks
-                    messageDiv.querySelectorAll('pre code').forEach((block) => {
-                        hljs.highlightElement(block);
-                    });
-                    
-                    // Process Mermaid diagrams
-                    messageDiv.querySelectorAll('code.language-mermaid').forEach((block) => {
-                        const mermaidCode = block.textContent;
-                        const mermaidDiv = document.createElement('div');
-                        mermaidDiv.className = 'mermaid';
-                        mermaidDiv.textContent = mermaidCode;
-                        
-                        // Replace the code block with mermaid div
-                        block.parentElement.replaceWith(mermaidDiv);
-                    });
-                    
-                    // Render Mermaid diagrams
-                    mermaid.run({
-                        querySelector: '.mermaid'
-                    });
-                    
-                } catch (error) {
-                    console.warn('Markdown parsing failed:', error);
+
+            if (content && content.includes('[TOOL_CALL:')) {
+                messageDiv.className = 'message tool-use';
+                messageDiv.innerHTML = formatToolCall(content);
+            } else if (content && content.includes('[TOOL_RESPONSE:')) {
+                messageDiv.className = 'message tool-response';
+                messageDiv.innerHTML = formatToolResponse(content);
+            } else {
+                messageDiv.className = `message ${type}`;
+
+                if (type === 'bot' || type === 'system') {
+                    try {
+                        marked.setOptions({
+                            breaks: true,
+                            gfm: true,
+                            sanitize: false,
+                            smartLists: true,
+                            smartypants: true
+                        });
+
+                        messageDiv.innerHTML = marked.parse(content);
+
+                        messageDiv.querySelectorAll('pre code').forEach((block) => {
+                            hljs.highlightElement(block);
+                        });
+
+                        messageDiv.querySelectorAll('code.language-mermaid').forEach((block) => {
+                            const mermaidCode = block.textContent;
+                            const mermaidDiv = document.createElement('div');
+                            mermaidDiv.className = 'mermaid';
+                            mermaidDiv.textContent = mermaidCode;
+                            block.parentElement.replaceWith(mermaidDiv);
+                        });
+
+                        mermaid.run({
+                            querySelector: '.mermaid'
+                        });
+
+                    } catch (error) {
+                        console.warn('Markdown parsing failed:', error);
+                        messageDiv.textContent = content;
+                    }
+                } else {
                     messageDiv.textContent = content;
                 }
-            } else {
-                messageDiv.textContent = content;
             }
-            
+
             messagesContainer.appendChild(messageDiv);
+            scrollToBottom();
+        }
+
+        function formatToolCall(content) {
+            return content.replace(/\[TOOL_CALL:(.*?)\]/g, '<strong style="color:#6f42c1">🔧 Tool çağrısı:</strong> $1');
+        }
+
+        function formatToolResponse(content) {
+            return content.replace(/\[TOOL_RESPONSE:(.*?)\]/g, '<strong style="color:#28a745">✅ Tool yanıtı:</strong> $1');
+        }
+
+        function scrollToBottom() {
+            const messagesContainer = document.getElementById('chat-messages');
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // Show error
         function showError(message) {
             const chatMessages = document.getElementById('chat-messages');
             chatMessages.innerHTML = `
@@ -522,15 +624,46 @@
             `;
         }
 
-        // Send message
+        function addStatusMessage(content) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message system';
+
+            if (content.includes('düşünüyor') || content.includes('hazırlanıyor')) {
+                messageDiv.innerHTML = `<em>${content.split('...')[0]}...</em> <div class="typing-indicator"><span></span><span></span><span></span></div>`;
+            } else {
+                messageDiv.innerHTML = `<em>${content}</em>`;
+            }
+
+            messagesContainer.appendChild(messageDiv);
+            scrollToBottom();
+            return messageDiv;
+        }
+
+        function updateMessage(messageElement, content) {
+            if (content && content.includes('[TOOL_CALL:')) {
+                messageElement.className = 'message tool-use';
+                messageElement.innerHTML = formatToolCall(content);
+            } else if (content && content.includes('[TOOL_RESPONSE:')) {
+                messageElement.className = 'message tool-response';
+                messageElement.innerHTML = formatToolResponse(content);
+            } else {
+                messageElement.innerHTML = content;
+            }
+            scrollToBottom();
+        }
+
         async function sendMessage(message) {
             if (!message.trim()) return;
 
             addMessage('user', message);
-            
+            document.getElementById('message-input').value = '';
+
             const sendButton = document.getElementById('send-button');
             sendButton.disabled = true;
             sendButton.textContent = 'Gönderiliyor...';
+
+            let statusMessage = addStatusMessage(`${escapeHtml(currentAgent.agentName)} yanıt hazırlanıyor...`);
 
             try {
                 const response = await fetchWithAuth(`/chat/${agentId}`, {
@@ -544,8 +677,7 @@
                 if (response && response.ok) {
                     const data = await response.json();
                     addMessage('bot', data.response);
-                    
-                    // Update session ID
+
                     if (data.session_id) {
                         sessionId = data.session_id;
                     }
@@ -553,10 +685,8 @@
                     const error = await response.json();
                     addMessage('bot', `Hata: ${error.detail || 'Bilinmeyen hata'}`);
                 }
-                // If response is null, user is being redirected to login
             } catch (error) {
                 console.error('Chat error:', error);
-                // Only show error message if it's not a token expiration
                 if (error.message !== 'Token expired') {
                     addMessage('bot', 'Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.');
                 }
@@ -566,35 +696,31 @@
             }
         }
 
-        // Go back to main page
         function goBack() {
             window.location.href = '/';
         }
 
-        // Event listeners
         document.getElementById('chat-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const messageInput = document.getElementById('message-input');
             const message = messageInput.value.trim();
-            
+
             if (message) {
                 await sendMessage(message);
                 messageInput.value = '';
             }
         });
 
-        // Initialize
         window.addEventListener('load', async () => {
             if (!checkAuth()) return;
-            
-            // Initialize Mermaid
+
             mermaid.initialize({
                 startOnLoad: false,
                 theme: 'default',
                 securityLevel: 'loose',
                 fontFamily: 'inherit'
             });
-            
+
             agentId = getAgentIdFromUrl();
             if (!agentId) {
                 showError('Geçersiz agent ID');
@@ -605,4 +731,5 @@
         });
     </script>
 </body>
+
 </html>

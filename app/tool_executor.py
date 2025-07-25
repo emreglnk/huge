@@ -433,6 +433,34 @@ async def execute_telegram_tool(tool: Tool, params: Dict[str, Any]) -> Dict[str,
 # Add Telegram tool to registry
 TOOL_REGISTRY['TELEGRAM'] = execute_telegram_tool
 
+# Add Scheduling tool to registry
+async def execute_scheduling_tool(tool: Tool, params: Dict[str, Any]) -> Dict[str, Any]:
+    """Execute scheduling tool operations"""
+    try:
+        from .scheduling_tool import execute_scheduling_operation
+        
+        # Get operation type from tool configuration or parameters
+        operation = params.get("operation") or tool.config.get("operation", "create_task")
+        
+        # Remove operation from params to avoid conflicts
+        clean_params = {k: v for k, v in params.items() if k != "operation"}
+        
+        # Execute the scheduling operation
+        result = await execute_scheduling_operation(operation, **clean_params)
+        
+        logger.info(f"Scheduling tool {tool.toolId} executed operation {operation}")
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error in scheduling tool {tool.toolId}: {str(e)}")
+        raise ToolExecutionError(f"Scheduling operation failed: {str(e)}")
+
+TOOL_REGISTRY['SCHEDULING'] = execute_scheduling_tool
+
+# Add Email tool to registry
+from .email_tool import execute_email_tool
+TOOL_REGISTRY['EMAIL'] = execute_email_tool
+
 def add_tool_type(tool_type: str, executor_func: Callable) -> None:
     """
     Safely add a new tool type to the registry.

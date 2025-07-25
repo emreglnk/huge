@@ -583,7 +583,10 @@ async def get_chat_history(agent_id: str, session_id: Optional[str] = None, limi
         logger.info(f"Chat history request: agent={agent_id}, user={current_user.username}, session={session_id}, limit={limit}")
         
         # Verify agent exists and user has access
+        logger.info(f"Verifying agent exists and user has access: {agent_id}")
         agent_config = await load_agent_config(agent_id)
+        logger.info(f"Agent config loaded: {agent_id}, owner={agent_config.owner}")
+        
         if agent_config.owner != current_user.username:
             logger.warning(f"Access denied: user {current_user.username} tried to access agent {agent_id} owned by {agent_config.owner}")
             raise HTTPException(status_code=403, detail="You do not have permission to access this agent's history.")
@@ -595,13 +598,16 @@ async def get_chat_history(agent_id: str, session_id: Optional[str] = None, limi
             # Get history for specific session
             logger.info(f"Getting history for specific session: {session_id}")
             history = await session_manager.get_session_history(session_id, limit)
+            logger.info(f"Retrieved history for session {session_id}: {len(history)} entries")
         else:
             # Get history from the latest session for this user and agent
             logger.info(f"Finding latest session for user={user_id}, agent={agent_id}")
             latest_session = await session_manager.find_latest_session(user_id, agent_id)
             if latest_session:
-                logger.info(f"Found latest session: {latest_session.get('session_id')}")
-                history = await session_manager.get_session_history(latest_session["session_id"], limit)
+                session_id = latest_session.get('session_id')
+                logger.info(f"Found latest session: {session_id}")
+                history = await session_manager.get_session_history(session_id, limit)
+                logger.info(f"Retrieved history for session {session_id}: {len(history)} entries")
             else:
                 logger.info("No sessions found for user and agent")
                 history = []
@@ -620,6 +626,106 @@ async def get_chat_history(agent_id: str, session_id: Optional[str] = None, limi
         logger.error(f"Traceback: {traceback.format_exc()}")
         # Return empty array on error to prevent 500 errors
         return []
+
+# --- Scheduled Tasks Endpoints ---
+@app.get("/agents/{agent_id}/scheduled-tasks")
+async def get_agent_scheduled_tasks(agent_id: str, current_user: User = Depends(get_current_active_user)):
+    """Get scheduled tasks for an agent"""
+    try:
+        # Verify agent ownership
+        agent_config = await load_agent_config(agent_id)
+        if agent_config.owner != current_user.username:
+            raise HTTPException(status_code=403, detail="You do not have permission to view tasks for this agent.")
+        
+        from .scheduling_tool import scheduling_tool
+        result = await scheduling_tool.list_scheduled_tasks(agent_id=agent_id, user_id=current_user.username)
+        
+        return result
+        
+    except AgentNotFoundException:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+    except Exception as e:
+        logger.error(f"Error getting scheduled tasks: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.post("/agents/{agent_id}/scheduled-tasks")
+async def create_scheduled_task(agent_id: str, task_data: dict = Body(...), current_user: User = Depends(get_current_active_user)):
+    """Create a new scheduled task for an agent"""
+    try:
+        # Verify agent ownership
+        agent_config = await load_agent_config(agent_id)
+        if agent_config.owner != current_user.username:
+            raise HTTPException(status_code=403, detail="You do not have permission to create tasks for this agent.")
+        
+        from .scheduling_tool import scheduling_tool
+        result = await scheduling_tool.create_scheduled_task(
+            task_name=task_data.get("task_name"),
+            task_type=task_data.get("task_type"),
+            schedule_type=task_data.get("schedule_type"),
+            schedule_params=task_data.get("schedule_params", {}),
+            task_params=task_data.get("task_params", {}),
+            agent_id=agent_id,
+            user_id=current_user.username
+        )
+        
+        return result
+        
+    except AgentNotFoundException:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+    except Exception as e:
+        logger.error(f"Error creating scheduled task: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.delete("/agents/{agent_id}/scheduled-tasks/{task_id}")
+async def delete_scheduled_task(agent_id: str, task_id: str, current_user: User = Depends(get_current_active_user)):
+    """Delete a scheduled task"""
+    try:
+        # Verify agent ownership
+        agent_config = await load_agent_config(agent_id)
+        if agent_config.owner != current_user.username:
+            raise HTTPException(status_code=403, detail="You do not have permission to delete tasks for this agent.")
+        
+        from .scheduling_tool import scheduling_tool
+        result = await scheduling_tool.delete_scheduled_task(task_id, current_user.username)
+        
+        return result
+        
+    except AgentNotFoundException:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+    except Exception as e:
+        logger.error(f"Error deleting scheduled task: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@app.get("/agents/{agent_id}/data")
+async def get_agent_data(agent_id: str, current_user: User = Depends(get_current_active_user)):
+    """Get stored data for an agent"""
+    try:
+        # Verify agent ownership
+        agent_config = await load_agent_config(agent_id)
+        if agent_config.owner != current_user.username:
+            raise HTTPException(status_code=403, detail="You do not have permission to view data for this agent.")
+        
+        from .database_tool import database_tool
+        
+        # Get data from agent's collection if it has one
+        data_collections = []
+        if agent_config.dataSchema and agent_config.dataSchema.collectionName:
+            collection_name = agent_config.dataSchema.collectionName
+            result = await database_tool.find_documents(collection_name, {}, limit=50)
+            if result.get("success"):
+                data_collections.append({
+                    "collection_name": collection_name,
+                    "documents": result.get("documents", []),
+                    "count": len(result.get("documents", []))
+                })
+        
+        return {"success": True, "data_collections": data_collections}
+        
+    except AgentNotFoundException:
+        raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+    except Exception as e:
+        logger.error(f"Error getting agent data: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 # --- Tool Execution Endpoints ---
 @app.post("/tools/{agent_id}/execute/{tool_id}")

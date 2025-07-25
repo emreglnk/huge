@@ -589,5 +589,7 @@
       "workflowId": "gunluk_menu_onerisi"
     }
   ],
-  "public": true
+  "public": true,
+  "telegram_config": {},
+  "email_config": {}
 }

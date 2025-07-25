@@ -76,6 +76,8 @@ class AgentModel(BaseModel):
     workflows: List[Workflow] = Field(default_factory=list)
     schedules: List[Schedule] = Field(default_factory=list)
     public: Optional[bool] = False  # Whether the agent is publicly shareable
+    telegram_config: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Telegram bot configuration for this agent")
+    email_config: Optional[Dict[str, Any]] = Field(default_factory=dict, description="Email configuration for this agent")
 
     class Config:
         validate_by_name = True
